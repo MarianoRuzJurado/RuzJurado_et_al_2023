@@ -648,21 +648,26 @@ dev.off()
 
 #4. Bar plots of integrated Data
 
-##4.1 Barplot of % cells per cell type (orig.ident)
+##4.1 Barplot of % cells per cell type (condition)
 
 ```{r fig.height=10, fig.width=15}
 # Counting celltypes in timepoints
-outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated"
 library(ggplot2)
 library(scales)
 library(stringr)
-V<- SeuratObject.combined.annotated@meta.data
-orig.ident.ordered<-str_sort(unique(SeuratObject.combined.annotated@meta.data$orig.ident),numeric = TRUE)
+V<- HFrEF.Control.Obj@meta.data
+orig.ident.ordered<-str_sort(unique(HFrEF.Control.Obj@meta.data$orig.ident),numeric = TRUE)
 V$orig.ident<-factor(V$orig.ident,levels = orig.ident.ordered)
 V$res.0.6<-factor(V$cell_type)
 
-Summary.Celltypes <- V %>% dplyr::count(orig.ident,res.0.6) %>% dplyr::group_by(orig.ident) %>%
+
+Summary.Celltypes <- V %>% dplyr::count(orig.ident,res.0.6) %>% dplyr::group_by(orig.ident) %>% 
   dplyr::mutate(freq = n /sum(n)) %>% complete(res.0.6,fill = list(n=0,freq=0))
+
+##SEMs
+SEM <- function(x) sqrt(var(x)/length(x))
+
+
 
 Summary.Celltypes$res.0.6 <- factor(Summary.Celltypes$res.0.6)
 condition<-c()
@@ -675,19 +680,44 @@ for (x in Summary.Celltypes$orig.ident) {
 }
 Summary.Celltypes$condition<-condition
 
-svg(filename = paste0(outputFolder,"/Barplot-CellsperCelltypePerSample_10_08_22.svg"),width = 20, height = 15)
-ggplot(Summary.Celltypes, aes(x=orig.ident, y= freq, fill= condition))+
+#order it with some rbinds, quick and dirty
+DF.sorted <- Summary.Celltypes %>% dplyr::group_by(condition, res.0.6) %>% dplyr::summarize(Mean = mean(freq), SEM = SEM(freq))
+DF.sorted.final <- rbind(DF.sorted[1:7,], DF.sorted[15:21,])
+DF.sorted.final <- rbind(DF.sorted.final,DF.sorted[8:14,])
+DF.sorted.final <- rbind(DF.sorted.final,DF.sorted[22:28,])
+
+DF.sorted.orig <- Summary.Celltypes %>% dplyr::select(orig.ident,res.0.6,freq,condition)
+DF.sorted.orig <- DF.sorted.orig %>% group_by(orig.ident, res.0.6, condition) %>% 
+    summarise(Mean = mean(freq))
+
+
+#Factor setting for order
+DF.sorted.final$condition<-factor(DF.sorted.final$condition, levels = c("Human-CTRLlv","Human-HFrEF","Mice-CTRL","Mice-HFrEF"))
+
+ListTest <- list()
+ListTest[[1]] <- c("Human-CTRLlv", "Human-HFrEF")
+ListTest[[2]] <- c("Mice-CTRL", "Mice-HFrEF")
+
+ggplot(DF.sorted.final, aes(x=condition, y= Mean, fill=condition))+
   geom_col(width = 0.9, color = "black")+
-  facet_wrap(~res.0.6, nrow = 5, scales = "free")+
-  scale_y_continuous(name = "Percent per timepoint", labels = scales::percent_format())+
-  theme(panel.background = element_blank(),
-        strip.text = element_text(size=16),
+  facet_wrap(~res.0.6, nrow = 2, scales = "free")+
+  scale_y_continuous(name = "Percent per Cell type", labels = scales::percent_format())+
+  scale_fill_manual("organism",values = c("Human-AS"= "#F86B62","Mice-AS"="#08B2B7","Human_CTRLsp"="#F86B62","Human-CTRLlv"="#F86B62","Luka_Healthy"="#F86B62","Mice-CTRL"="#08B2B7",                         "Human-HFpEF"="#F86B62","Mice-HFpEF"="#08B2B7",
+                               "Human-HFrEF"="#F86B62","Mice-HFrEF"="#08B2B7"))+
+  geom_errorbar(aes(ymin=Mean-SEM, ymax=Mean+SEM), width =0.2)+
+  theme_classic()+
+  stat_compare_means(data=DF.sorted.orig, comparisons = ListTest, method = "t.test", size=3)+
+  theme(strip.text = element_text(size=13, face = "bold"),
         axis.title.x = element_blank(),
-        axis.text.x = element_text(angle = 45, hjust= 1, size = 10))
+        axis.text.x = element_text(face = "bold", color = "black",angle = 45,hjust = 1, size = 13),
+        legend.position = "none",
+        axis.title.y = element_text(face = "bold", size = 13, hjust = 0.5, vjust = 2.5),
+        axis.text.y = element_text(size = 13, face = "bold",))
+
+ggsave(filename = paste0(outputFolder,"/Human_Mice_Barplot-CellsperCelltypePerCondition_30_05_23.png"),width = 13, height = 8)
+ggsave(filename = paste0(outputFolder,"/Human_Mice_Barplot-CellsperCelltypePerCondition_30_05_23.svg"),width = 13, height = 8)
 dev.off()
 
-##clean up 
-rm(V, orig.ident.ordered, Summary.Celltypes)
 ```
 
 #5. DEG analysis for Human_Mice_integrated object
@@ -904,60 +934,6 @@ rm(SeuratObject.combined.annotated.contast_celltype,
 ```
 
 
-
-###5.3.1 Mean +/- Sem bar graphs celltype
-```{r}
-outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/SEM_graphs"
-
-
-List.contrast <- list() # for mice
-List.contrast[[1]] <- c("Mice-CTRL","Mice-HFrEF")
-
-List.contrast <- list() # for human
-List.contrast[[1]] <- c("Human-CTRLlv","Human-HFrEF")
-
-species <- "Human"
-Idents(SeuratObject.combined.annotated) <- "species"
-SeuratObject.combined.annotated.species<- subset(SeuratObject.combined.annotated, idents = species)
-species2 <- "Mice"
-Idents(SeuratObject.combined.annotated) <- "species"
-SeuratObject.combined.annotated.species2<- subset(SeuratObject.combined.annotated, idents = species2)
-
-Idents(SeuratObject.combined.annotated.species2) <- "condition"
-SeuratObject.combined.annotated.species2.HFrEF <- subset(SeuratObject.combined.annotated.species2, idents = c("Mice-CTRL","Mice-HFrEF")) 
-
-#subset
-Idents(SeuratObject.combined.annotated.species) <- "condition"
-SeuratObject.combined.annotated.species.HFrEF <- subset(SeuratObject.combined.annotated.species, idents = c("Human-CTRLlv","Human-HFrEF"))
-
-
-DO.Mean.SEM.Graphs(SeuratObject = SeuratObject.combined.annotated.species.HFrEF
-                   ,Features = c("CDKN2A","CDKN2B","CDKN2C","CDKN1A"
-                                 )
-                   ,List.contrast
-                   )
-ggsave(filename = paste0(outputFolder,"/SEM_graph_.svg"),device = "svg", width = 20, height = 5)
-dev.off()
-
-#per cell type
-Idents(SeuratObject.combined.annotated.species2.HFrEF) <- "cell_type"
-for (cell.type in levels(SeuratObject.combined.annotated.species2.HFrEF$cell_type)) {
-  sb.cell <- subset(SeuratObject.combined.annotated.species2.HFrEF, idents = cell.type) 
-  pdf(paste0(outputFolder,"/SEM_graph_mice_",cell.type,"_CDKN2A_CDKN2B_CDKN2C_CDKN1A.pdf"), width = 13, height = 10)
-  print(DO.Mean.SEM.Graphs(SeuratObject = sb.cell
-                           ,Features = c("CDKN2A","CDKN2B","CDKN2C","CDKN1A")
-                           ,ListTest =  List.contrast
-  ))
-  dev.off()
-}
-
-#clean up
-rm(SeuratObject.combined.annotated.species)
-rm(SeuratObject.combined.annotated.species2)
-rm(List.contrast, sb.cell)
-rm(SeuratObject.combined.annotated.species.HFrEF,SeuratObject.combined.annotated.species2.HFrEF)
-```
-
 ###5.3.2 Mean +/- Sem bar graphs condition
 
 ```{r}
@@ -968,7 +944,7 @@ Idents(SeuratObject.combined.annotated.HFrEF) <- "cell_type"
 SeuratObject.combined.annotated.HFrEF.CM <- subset(SeuratObject.combined.annotated.HFrEF, idents = c("Cardiomyocytes")) 
 #up GSEA CM human
 #angiogenesis term
-#FLT1/EGFL7/PIK3R3/PTPRB/NOTCH4/EPAS1/HSPG2/ENG/VEGFC/SASH1/PDE3B/COL8A1/RORA/ADAMTS9/AKT3/COL4A2/PTPRM/COL4A1/VEGFA/CALD1/RNF213/SMOC2/MEOX2/MYH9/THSD7A/CTNNB1/ADAMTS1/ID1/COL18A1/FLNA/ROCK2/MAP3K3/MCAM/FN1/PRKD1/NR4A1/TEK/EIF2AK3/HDAC7/CDH5/ADGRB3/RASIP1/HIPK2/PLXND1/RHOJ/MAP2K5/PTK2/JAK1/PPP1R16B/ADAM15/HSPB6/ROBO1/NF1/NOTCH1/NRP1/RAPGEF3/SHB/ELK3/EDNRA/EFNB2/APOLD1/ITGAV/CALCRL/FMNL3/PIK3CA/SETD2/HMGB1/THBS1/BCAS3/SULF1/KLF2/SLIT2/PPARG/COL15A1/HDAC5/JAG1/DAB2IP/PRKD2/WASF2/TIE1/PLXDC1/MAPK14/JAM3/AGO2/GTF2I/PDGFRA/VASH1/JCAD/PIK3C2A/ADIPOR2/PML/ADGRG1/SLC12A2/NFE2L2/EPHB4/ANXA3/ENPEP/ROCK1/ANXA2/STAT1/UNC5B/SMAD1/KDR/DLL4/ROBO4/LEPR/CD34/TJP1/ETS1/PDCD6/PTEN/NOS3/PLCG1/KLF4/PDGFRB/AQP1/AMOTL1/SPRED1/MFGE8/ARHGAP22/CLDN5/NCL/HYAL1/B4GALT1/NUS1/RHOA/MMRN2/SIRT1/C5AR1/FGF2/RGCC/DDAH1/NFATC4/PPP3R1/SAT1/HGS/ENPP2/FLT4/THBS4/SP1/HIPK1/SHC1/SEMA5A/STAB1/TNFAIP2/ADGRA2/CYP1B1/FAP/VAV2
+# tmp <- FLT1/EGFL7/PIK3R3/PTPRB/NOTCH4/EPAS1/HSPG2/ENG/VEGFC/SASH1/PDE3B/COL8A1/RORA/ADAMTS9/AKT3/COL4A2/PTPRM/COL4A1/VEGFA/CALD1/RNF213/SMOC2/MEOX2/MYH9/THSD7A/CTNNB1/ADAMTS1/ID1/COL18A1/FLNA/ROCK2/MAP3K3/MCAM/FN1/PRKD1/NR4A1/TEK/EIF2AK3/HDAC7/CDH5/ADGRB3/RASIP1/HIPK2/PLXND1/RHOJ/MAP2K5/PTK2/JAK1/PPP1R16B/ADAM15/HSPB6/ROBO1/NF1/NOTCH1/NRP1/RAPGEF3/SHB/ELK3/EDNRA/EFNB2/APOLD1/ITGAV/CALCRL/FMNL3/PIK3CA/SETD2/HMGB1/THBS1/BCAS3/SULF1/KLF2/SLIT2/PPARG/COL15A1/HDAC5/JAG1/DAB2IP/PRKD2/WASF2/TIE1/PLXDC1/MAPK14/JAM3/AGO2/GTF2I/PDGFRA/VASH1/JCAD/PIK3C2A/ADIPOR2/PML/ADGRG1/SLC12A2/NFE2L2/EPHB4/ANXA3/ENPEP/ROCK1/ANXA2/STAT1/UNC5B/SMAD1/KDR/DLL4/ROBO4/LEPR/CD34/TJP1/ETS1/PDCD6/PTEN/NOS3/PLCG1/KLF4/PDGFRB/AQP1/AMOTL1/SPRED1/MFGE8/ARHGAP22/CLDN5/NCL/HYAL1/B4GALT1/NUS1/RHOA/MMRN2/SIRT1/C5AR1/FGF2/RGCC/DDAH1/NFATC4/PPP3R1/SAT1/HGS/ENPP2/FLT4/THBS4/SP1/HIPK1/SHC1/SEMA5A/STAB1/TNFAIP2/ADGRA2/CYP1B1/FAP/VAV2
 
 #tmp <- unlist(strsplit(tmp, split = "/"))
 
@@ -1019,6 +995,26 @@ genes <- GTPase.genes[28:length(GTPase.genes)]
 
 rm(GTPase.genes,genes)
 
+#actin filament organization
+#tmp <- TTN/PHLDB2/SHANK3/ELMO1/NEBL/PXN/HMCN1/ACTN1/SPTBN1/TPM3/CALD1/HIP1/PLEC/LIMA1/TNNT2/ID1/NEDD9/CCDC88A/MYO1D/MYO6/FLNA/ROCK2/NEB/JAK2/FCHSD2/NOSTRIN/SPTAN1/BCL2/EPS8/ADD1/MICAL3/SHROOM4/PPP1R9A/CLASP1/MYO1E/DPYSL3/MYO1B/DLC1/CORO6/ARHGEF10/NRP1/RUFY3/ALMS1/RAPGEF3/ESAM/SMAD3/DIAPH2/GAS7/DIAPH1/ARHGEF15/NRAP/PIK3CA/WASHC4/INPPL1/ENAH/WIPF3/CD2AP/ELN/SLIT2/CYFIP1/ARHGAP17/WASF2/ITGB5/MYO1C/SORBS1/RICTOR/TTC17/BAIAP2L1/HIP1R/INF2/ARAP1/CAPZB/WIPF1/KANK3/PPFIA1/PDLIM1/ARHGAP35/SYNPO/BIN3/TSC1/MICAL2/NCKAP1/SYNPO2/MICALL2/HSP90B1/MCU/FERMT2/SWAP70/XIRP2/FLII/PPM1F/TNFAIP1/ROCK1/ABI1/SPTB/GSN/PAK2/TPM2/SVIL/BCAR1/BRAF/TJP1/TPM4/SPIRE1/ARHGEF2/FHOD1/TMOD3/MYO5A/CTTN/ARFIP1/XIRP1/PREX1/FAT1/PLEKHG2/ARRB1/FAM171A1/ARHGAP6/PLEKHH2/EVL/SORBS3/ARPC2/SSH1/MYO5C/KIRREL1/ARHGEF10L/SHTN1/CYFIP2/RHOA/SNX9/DAAM2/ASAP3/DLG1/PAWR/RGCC/TRIOBP/AIF1L/ADD3/ARHGAP12/CORO2B/MET/SPTBN4
+
+#get only genes which are DEGs in Human and not in Mice
+Cardio.Human.HFrEF <- Differential.expression.feature.list.contrast_celltypes$Human_Cardiomyocytes_HFrEF$Markers
+In.Human.DEG <- Cardio.Human.HFrEF[rownames(Cardio.Human.HFrEF) %in% tmp,]
+
+#get the mice ones
+Cardio.Mice.HFrEF <- Differential.expression.feature.list.contrast_celltypes$`Mice_Cardiomyocytes_Mice-HFrEF`$Markers
+In.Mice.DEG <- Cardio.Mice.HFrEF[rownames(Cardio.Mice.HFrEF) %in% tmp,]
+
+#get the genes which are Human unique
+Human.unique <- In.Human.DEG[!rownames(In.Human.DEG) %in% rownames(In.Mice.DEG),]
+Human.unique <- rownames(Human.unique) # just the gene names for the function below
+
+actin.fil.genes <- Human.unique
+genes <- actin.fil.genes[1:27] 
+genes <- GTPase.genes[28:length(GTPase.genes)]
+
+
 #UP GSEA Terms mice specific
 #actin myosin filament sliding
 #MYH7/MYBPC3/TNNT2/MYH6/TPM1/ACTC1/TNNC1
@@ -1062,25 +1058,231 @@ genes <- Wnt.genes[28:length(Wnt.genes)]
 # genes <- Wnt.genes[109:135]
 # genes <- Wnt.genes[136:length(Wnt.genes)]
 
+#cytoplasmatic translation
+#tmp <- "RPS3A/RPSA/CNBP/RPS27/RPL10/RPL17/RPS15A/RPL7A/RPL5/RPL23/RPS9/RPS2/RPL3/RPL4/RPL7/RPL28/RPS24/RPS8/RPL39/RPL36A/RPL35/RPL9/RPS26/RPL22L1/UBA52/RPL18/RPS25/RPL26/RPS17/RPL38/RPS20/DRG1/RPL31/RPS4X/RPLP1/RPS13/RPLP2/RPS7/RPL8/RPL15/RPLP0/RPL27/RPS27A/RPL24/RPL13A/RPS18/RPS15/RPL36/RPL32/RPL35A/RPL19/RPS14/RPS3/RPS6/RPL14/RPL11/RPS11/RPS5/RPL27A/RPS16/FAU/RPS23/RPL21/RPL13/RPL37A/RPL37/RPL23A/RPS28/RPS19/RPL18A/RPS29/CPEB3/RPL41/RPL29/RPL34"
+
+#get only genes which are DEGs in Human and not in Mice
+Cardio.Human.HFrEF <- Differential.expression.feature.list.contrast_celltypes$Human_Cardiomyocytes_HFrEF$Markers
+In.Human.DEG <- Cardio.Human.HFrEF[rownames(Cardio.Human.HFrEF) %in% tmp,]
+
+#get the mice ones
+Cardio.Mice.HFrEF <- Differential.expression.feature.list.contrast_celltypes$`Mice_Cardiomyocytes_Mice-HFrEF`$Markers
+In.Mice.DEG <- Cardio.Mice.HFrEF[rownames(Cardio.Mice.HFrEF) %in% tmp,]
+
+#get the genes which are Mice unique
+Mice.unique <- In.Mice.DEG[!rownames(In.Mice.DEG) %in% rownames(In.Human.DEG),]
+Mice.unique <- rownames(Mice.unique) # just the gene names for the function below
+
+cytotranslation.genes <- Mice.unique
+genes <- cytotranslation.genes[1:27]
+
+#reg. of cell morphogenesis
+#tmp <- "VEGFA/MACF1/PLXNA4/ARHGAP15/CUX2/FBLIM1/RREB1/ARHGEF18/DHX36/TPM1/NEDD4L/CUX1/FMNL2/FYN/BRWD1/FGD2/STAU2/CYFIP1/PARVA/ARHGEF7/SPAG9/EPS8/CAPZB/ITSN2/DVL1/PARVB/CSF1R/PTK2B/PLXNA2/FBXW8/FERMT2/MARK2/MYO10/MYH9/SMURF1/GNA12/ARHGAP18/RHOJ/SH3KBP1/ARAP1/DVL3/SHROOM3/EPB41/RHOQ/CFDP1/KANK1/GNA13/FGD6/HCK/SEMA4D/SLC23A2/FGD5/PLXND1/CD44/PLEKHO1/CDC42SE2/NF2/PLXNC1/FMNL1/WDR1/WDPCP/DIAPH1/PLXNB1/DNMBP/RASA1/BCL11A/PLXNB2/FES/PRKN/PARP6/EFNA5/PAFAH1B1/EZR/SYNE3/BVES/LPAR1/EEF2K/MYH10/MSN/PTK2/MYL12B/LIMD1/DLC1/MOV10/FMNL3/FGD3/ZRANB1/SH3D19/LARP4/MYO9A/ANKRD27/MKLN1/STRIP1/ARHGAP35/TAOK2/SEMA4A/CORO1C/PALM/FN1/PTPRD/DLG4/BCL9L/FAM171A1"
+
+#get only genes which are DEGs in Human and not in Mice
+Cardio.Human.HFrEF <- Differential.expression.feature.list.contrast_celltypes$Human_Cardiomyocytes_HFrEF$Markers
+In.Human.DEG <- Cardio.Human.HFrEF[rownames(Cardio.Human.HFrEF) %in% tmp,]
+
+#get the mice ones
+Cardio.Mice.HFrEF <- Differential.expression.feature.list.contrast_celltypes$`Mice_Cardiomyocytes_Mice-HFrEF`$Markers
+In.Mice.DEG <- Cardio.Mice.HFrEF[rownames(Cardio.Mice.HFrEF) %in% tmp,]
+
+#get the genes which are Mice unique
+Mice.unique <- In.Mice.DEG[!rownames(In.Mice.DEG) %in% rownames(In.Human.DEG),]
+Mice.unique <- rownames(Mice.unique) # just the gene names for the function below
+
+cell.morph.genes <- Mice.unique
+genes <- cell.morph.genes[1:27]
+
 ListTest <- list()
 ListTest[[1]] <- c("Mice-CTRL","Mice-HFrEF")
 ListTest[[2]] <- c("Human-CTRLlv","Human-HFrEF")
 
-#ups
+#down both
 genes <- c("PGAM2","NDUFA1","TMEM126A","UQCRFS1","COX7A2","COX5B")
+
+#different up
+genes <- c("FLT1","MEOX2","MCF2L","RASGRF2","MICALL2","NOSTRIN")
+
+#different down
+genes <- c("LRP6", "MARK2", "RPL19","RPL35","ARHGAP15","PTK2B")
 
 DO.Mean.SEM.Graphs(SeuratObject = SeuratObject.combined.annotated.HFrEF.CM,
                    Features = genes,
                    ListTest = ListTest)
 
+#both
+ggsave(filename = paste0(outputFolder,"/PGAM2_NDUFA1_TMEM126A_UQCRFS1_COX7A2_COX5B_genes.svg"),device = "svg", width = 14, height = 5)
 
-ggsave(filename = paste0(outputFolder,"/PGAM2_NDUFA1_TMEM126A_UQCRFS1_COX7A2_COX5B_genes.svg"),device = "svg", width = 14, height = 6)
+#different human
+ggsave(filename = paste0(outputFolder,"/FLT1_MEOX2_MCF2L_RAGSRF2_MICALL2_NOSTRIN_genes.svg"),device = "svg", width = 14, height = 5)
+
+#different mice
+ggsave(filename = paste0(outputFolder,"/LRP6_MARK2_RPL19_RPL35_ARHGAP15_PTK2B_genes.svg"),device = "svg", width = 14, height = 5)
 
 rm(Wnt.genes,genes,celresp.genes)
 rm(SeuratObject.combined.annotated.HFrEF, SeuratObject.combined.annotated.HFrEF.CM,ListTest)
 rm(Human.unique,Cardio.Human.HFrEF,Cardio.Mice.HFrEF,Mice.unique)
 ```
 
+###5.3.3 DEGs Barplot per cell type 
+```{r}
+outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/"
+
+#get HFrEF DEGs
+DF.list.HFrEF <- Differential.expression.feature.list.contrast_celltypes[grep(pattern = "HFrEF" ,names(Differential.expression.feature.list.contrast_celltypes))]
+
+#all mice HFrEF genes with statistics
+DF.mice.HFrEF <- Differential.expression.feature.list.contrast_celltypes.no.tresh[grep(pattern = "HFrEF" ,names(Differential.expression.feature.list.contrast_celltypes.no.tresh))]
+
+DF.mice.HFrEF <- DF.mice.HFrEF[grep(pattern = "Mice" ,names(DF.mice.HFrEF))]
+
+#upregulated lists
+DF.list.HFrEF.up <- lapply(DF.list.HFrEF, function(inner_list){
+  lapply(inner_list, function(df){
+    df[df$avg_log2FC >0,]
+  })
+})
+#human
+DF.list.HFrEF.up.Human <- DF.list.HFrEF.up[grep(pattern = "Human", names(DF.list.HFrEF.up))]
+  
+#downregulated lists
+DF.list.HFrEF.down <- lapply(DF.list.HFrEF, function(inner_list){
+  lapply(inner_list, function(df){
+    df[df$avg_log2FC <0,]
+  })
+})
+#human
+DF.list.HFrEF.down.Human <- DF.list.HFrEF.down[grep(pattern = "Human", names(DF.list.HFrEF.down))]
+
+#collect Human DEGs with mouse statistics
+overlap.Human <- list()
+for (cell.type in levels(SeuratObject.combined.annotated$cell_type)) {
+  if (cell.type != "Neuro") {
+    #collect the cell type DEG list for Human
+    DF.up.Human.celltype <- DF.list.HFrEF.up.Human[grep(pattern = cell.type ,names(DF.list.HFrEF.up.Human))]
+    DF.up.Human.celltype <- rownames_to_column(DF.up.Human.celltype[[1]]$Markers)
+    
+    DF.down.Human.celltype <- DF.list.HFrEF.down.Human[grep(pattern = cell.type ,names(DF.list.HFrEF.down.Human))]
+    DF.down.Human.celltype <- rownames_to_column(DF.down.Human.celltype[[1]]$Markers)
+    
+    #get mice statsitics for comparison
+    DF.mice.celltype <- DF.mice.HFrEF[grep(pattern = cell.type ,names(DF.mice.HFrEF))]
+  
+    #Human up matching
+    match.overlap.mice.up <- DF.mice.celltype[[1]]$Markers[intersect(rownames(DF.mice.celltype[[1]]$Markers),
+                                                                  DF.up.Human.celltype$rowname),]
+    match.overlap.mice.up <- rownames_to_column(match.overlap.mice.up)
+    
+    DF.merge.up <- dplyr::inner_join(DF.up.Human.celltype, match.overlap.mice.up, by = "rowname")
+    
+    #make the numbers also in % for this we need the whole numbers of DEG in human 
+    mx.up <- nrow(DF.merge.up) 
+
+    overlap.Human[[cell.type]][["up.up"]] <- (nrow(DF.merge.up[DF.merge.up$avg_log2FC.x > 0.1 & DF.merge.up$avg_log2FC.y > 0.1,])/mx.up)*100
+    # overlap.Human[[cell.type]][["up.up"]] <- DF.merge.up[DF.merge.up$avg_log2FC.x > 0.1 & DF.merge.up$avg_log2FC.y > 0.1,]
+    
+    overlap.Human[[cell.type]][["up.not"]] <- (nrow(DF.merge.up[DF.merge.up$avg_log2FC.x > 0.1 &
+                                                                 DF.merge.up$avg_log2FC.y <= 0.1 &
+                                                                 DF.merge.up$avg_log2FC.y >= -0.1,])/mx.up)*100
+
+    # overlap.Human[[cell.type]][["up.not"]] <- DF.merge.up[DF.merge.up$avg_log2FC.x > 0.1 &
+    #                                                              DF.merge.up$avg_log2FC.y <= 0.1 &
+    #                                                              DF.merge.up$avg_log2FC.y >= -0.1,]
+
+    overlap.Human[[cell.type]][["up.down"]] <- (nrow(DF.merge.up[DF.merge.up$avg_log2FC.x > 0.1 & DF.merge.up$avg_log2FC.y < -0.1,])/mx.up)*100
+    
+    # overlap.Human[[cell.type]][["up.down"]] <- DF.merge.up[DF.merge.up$avg_log2FC.x > 0.1 & DF.merge.up$avg_log2FC.y < -0.1,]
+    
+    #Human down matching
+    match.overlap.mice.down <- DF.mice.celltype[[1]]$Markers[intersect(rownames(DF.mice.celltype[[1]]$Markers),
+                                                                  DF.down.Human.celltype$rowname),]
+    match.overlap.mice.down <- rownames_to_column(match.overlap.mice.down)
+  
+    DF.merge.down <- dplyr::inner_join(DF.down.Human.celltype, match.overlap.mice.down, by = "rowname")
+    
+    #make the numbers also in % for this we need the whole numbers of DEG in human 
+    mx.down <- nrow(DF.merge.down) 
+    
+    overlap.Human[[cell.type]][["down.up"]] <- (nrow(DF.merge.down[DF.merge.down$avg_log2FC.x < -0.1 & DF.merge.down$avg_log2FC.y > 0.1,])/mx.down)*100
+    
+    # overlap.Human[[cell.type]][["down.up"]] <- DF.merge.down[DF.merge.down$avg_log2FC.x < -0.1 & DF.merge.down$avg_log2FC.y > 0.1,]
+    
+    overlap.Human[[cell.type]][["down.not"]] <- (nrow(DF.merge.down[DF.merge.down$avg_log2FC.x < -0.1 &
+                                                                 DF.merge.down$avg_log2FC.y <= 0.1 &
+                                                                 DF.merge.down$avg_log2FC.y >= -0.1,])/mx.down)*100
+    
+    # overlap.Human[[cell.type]][["down.not"]] <- DF.merge.down[DF.merge.down$avg_log2FC.x < -0.1 &
+    #                                                              DF.merge.down$avg_log2FC.y <= 0.1 &
+    #                                                              DF.merge.down$avg_log2FC.y >= -0.1,]
+    
+    overlap.Human[[cell.type]][["down.down"]] <- (nrow(DF.merge.down[DF.merge.down$avg_log2FC.x < -0.1 & DF.merge.down$avg_log2FC.y < -0.1,])/mx.down)*100
+    
+    # overlap.Human[[cell.type]][["down.down"]] <- DF.merge.down[DF.merge.down$avg_log2FC.x < -0.1 & DF.merge.down$avg_log2FC.y < -0.1,]
+  }
+}
+
+
+
+#build data frame
+df.DEG.combined <- as.data.frame(overlap.Human) %>%
+  reshape2::melt()
+
+#for every cell type and up down combination
+df.up.up <- df.DEG.combined[grep(pattern = "up.up",df.DEG.combined$variable),]
+df.up.not <- df.DEG.combined[grep(pattern = "up.not",df.DEG.combined$variable),]
+df.up.down <- df.DEG.combined[grep(pattern = "up.down",df.DEG.combined$variable),]
+df.down.up <- df.DEG.combined[grep(pattern = "down.up",df.DEG.combined$variable),]
+df.down.not <- df.DEG.combined[grep(pattern = "down.not",df.DEG.combined$variable),]
+df.down.down <- df.DEG.combined[grep(pattern = "down.down",df.DEG.combined$variable),]
+
+
+
+#rename the column
+rename.vec <- c("Cardiomyocytes","Endothelial","Fibroblasts","Immune cells","Pericytes","Smooth Muscle")
+
+df.up.up$variable <- rename.vec
+df.up.not$variable <- rename.vec
+df.up.down$variable <- rename.vec
+df.down.up$variable <- rename.vec
+df.down.not$variable <- rename.vec
+df.down.down$variable <- rename.vec
+
+#build some nice list with the data.frame to run our ggplot through
+collected.DF <- list()
+collected.DF[["up.up"]] <- df.up.up
+collected.DF[["up.not"]] <- df.up.not
+collected.DF[["up.down"]] <- df.up.down
+collected.DF[["down.up"]] <- df.down.up
+collected.DF[["down.not"]] <- df.down.not
+collected.DF[["down.down"]] <- df.down.down
+
+
+for (DF.names in names(collected.DF)) {
+  #assign data frame
+  df.DEG.combined.melt <- collected.DF[[DF.names]]
+  
+  ggplot(df.DEG.combined.melt, aes(fill=variable, y=value,x=variable))+
+    geom_bar(position = "stack", stat= "identity")+
+    scale_fill_manual(values = rep(c("#cfe2f3","#BDD7E7" ,"#6BAED6", "#3182BD","#0b5394", "#08519C"),4) #15 colours set for more change number
+                        , name = "cell type")+
+    scale_y_continuous(expand = c(0,0), limits = c(0,105))+
+    labs(title = "", y = "DEG composition in %") +
+    theme_classic()+
+    theme(axis.text.x = element_text(color = "black",angle = 45,hjust = 1, size = 14),
+            axis.text.y = element_text(color = "black", size = 14),
+            axis.title.x = element_blank(),
+            axis.title = element_text(size = 14, color = "black", face = "bold"),
+            plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+            axis.line = element_line(color = "black", size = .6),
+            strip.text.x = element_text(size = 14,face = "bold", color = "black"),
+            legend.position = "right",
+            legend.text = element_text(size = 14),
+            legend.title = element_text(size = 14, face = "bold"))
+
+  ggsave(paste0(outputFolder, "DEG_Composition/DEG_Composition_barplot_celltype_",DF.names,".svg"), width = 6, height = 5)
+}
+```
 
 ##5.4 GO (Database) analysis for cell type specific DEGs
 ```{r}
@@ -1442,216 +1644,324 @@ dev.off()
 
 ```
 
-###5.4.6 Table of all GSEAs specific cell type in Mice and Human visualized in a fancy table HFrEF 
+###5.4.6 GO (Database) GSEA results in Heatmap using simplifyEnrichment for HFrEF / building Dot plot Cardiomyocytes
 ```{r}
+outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/GSEA_analysis"
 
-outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific"
-#Human Data frame containing information about cell type, log2FC and gene name
+library(simplifyEnrichment)
+library(gridtext)
 #subsetting List for HFpEF samples
 GSEA.result.HFrEF <- GSEA.result[grep(pattern = "HFrEF" ,names(GSEA.result))]
-for (m in c("BP","MF","CC")) {
-  for (celltype in names(GSEA.result.HFrEF)) {
-    GSEA.celltype <- GSEA.result.HFrEF[[celltype]][[paste0("Markers_",m,"_result")]]
-    GSEA.result.HFrEF[[celltype]][[paste0("Markers_",m,"_result")]] <- GSEA.celltype[GSEA.celltype$p.adjust < 0.05,] # only p.adjust significant
-  }
-}
-#getting GSEAs for human
 
-#add for loop for subontologies
-DF.Human.list <- list()
-for (m in c("BP","MF","CC")) {
-  GSEA.Human.HFrEF <- GSEA.result.HFrEF[[1]][[paste0("Markers_",m,"_result")]]
-  rownames(GSEA.Human.HFrEF) <- NULL
-  if (length(unlist(strsplit(names(GSEA.result.HFrEF)[1], split = "_"))) ==3) { #keep the cell type name
-    GSEA.Human.HFrEF$Celltype <- unlist(strsplit(names(GSEA.result.HFrEF)[1], split = "_"))[2]
+#just take cardiomyocytes BP
+GSEA.result.HFrEF.CM <- GSEA.result.HFrEF[grep(pattern = "Cardiomyocytes" ,names(GSEA.result.HFrEF))]
+
+#for cardiomyocytes
+lt <- list()
+lt[["Human HFrEF"]] <- GSEA.result.HFrEF$Human_Cardiomyocytes_HFrEF$Markers_BP_result
+lt[["Mice HFrEF"]] <- GSEA.result.HFrEF$`Mice_Cardiomyocytes_Mice-HFrEF`$Markers_BP_result
+# lt[["Human_EC"]] <- GSEA.result.HFrEF$Human_Endothelial_HFrEF$Markers_BP_result
+# lt[["Mice_EC"]] <- GSEA.result.HFrEF$`Mice_Endothelial_Mice-HFrEF`$Markers_BP_result
+
+lt2 = lapply(lt, function(x) structure(x$p.adjust, names = x$ID))
+pdf(file = "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/GSEA_analysis/HeatMap_HFrEF_CM_unique.pdf", width = 10, height = 10)
+simplifyGOFromMultipleLists(lt2, padj_cutoff = 0.25)
+dev.off()
+
+
+
+#extract the Terms from both organism
+Human.GSEA.DF <- na.omit(lt$`Human HFrEF`)
+Mouse.GSEA.DF <- na.omit(lt$`Mice HFrEF`)
+
+#buld data frames
+Human.spec.DF <- Human.GSEA.DF
+Human.spec.DF <- Human.spec.DF %>%
+  dplyr::select(Description, NES, p.adjust) %>%
+  remove_rownames() %>%
+  column_to_rownames(var = "Description")
+colnames(Human.spec.DF) <- c("Human.NES", "Human.p.adjust")
+
+Mouse.spec.DF <- Mouse.GSEA.DF
+Mouse.spec.DF <- Mouse.spec.DF %>%
+  dplyr::select(Description, NES, p.adjust) %>%
+  remove_rownames() %>%
+  column_to_rownames(var = "Description")
+colnames(Mouse.spec.DF) <- c("Mouse.NES", "Mouse.p.adjust")
+
+#merge both data  frames
+merged.DF <- merge(Human.spec.DF, Mouse.spec.DF, by = "row.names", all = T)
+#change form
+merged.DF.long <- merged.DF %>% tidyr::pivot_longer(cols = starts_with("Human.") | starts_with("Mouse."),
+                                                    names_to = c("Species", ".value"),
+                                                    names_pattern = "(Human|Mouse)\\.(\\w+)")
+
+
+merged.DF.long$Species <- factor(merged.DF.long$Species, levels = c("Mouse","Human"))
+
+#initialize new column
+merged.DF.long$specific <- 0
+merged.DF.long$specific <- as.character(merged.DF.long$specific)
+
+for (desc in merged.DF.long$Row.names) {
+  
+  row.desc <- na.omit(merged.DF.long[merged.DF.long$Row.names == desc,])
+  
+  
+  if (nrow(row.desc) == 2) {
+    merged.DF.long[merged.DF.long$Row.names == desc,]$specific <- rep("Commonly regulated",2)
   }
-  if (length(unlist(strsplit(names(GSEA.result.HFrEF)[1], split = "_"))) ==4) { # together :)
-    GSEA.Human.HFrEF$Celltype <- paste0(unlist(strsplit(names(GSEA.result.HFrEF)[1], split = "_"))[2:3], collapse = "_")
+  
+  if (nrow(row.desc) == 1 && row.desc$Species == "Human") {
+    merged.DF.long[merged.DF.long$Row.names == desc,]$specific <- "Human specific"
+  }
+  
+  if (nrow(row.desc) == 1 && row.desc$Species == "Mouse") {
+    merged.DF.long[merged.DF.long$Row.names == desc,]$specific <- "Mouse specific"
   }  
-  GSEA.Human.HFrEF <-  GSEA.Human.HFrEF %>% dplyr::select(Description, qvalues, Celltype, p.adjust,NES)
-  colnames(GSEA.Human.HFrEF) <- c("GSEA_Term","log2human","Celltype","p.adjust","NES")
-  DF.Human <- GSEA.Human.HFrEF
-  
-  #extending data frame row wise by GSEA specific for their cell type
-  for (i in 2:length(GSEA.result.HFrEF)) {
-  species.celltype <- names(GSEA.result.HFrEF[i])
-  if ("Human" %in% unlist(strsplit(species.celltype, split = "_"))) {
-    
-    #change the structure of the data frame
-    unlist(strsplit(species.celltype, split = "_"))[2]
-    GSEA.Human.HFrEF <- GSEA.result.HFrEF[[i]][[paste0("Markers_",m,"_result")]]
-    if (!plyr::empty(GSEA.Human.HFrEF)) {
-      rownames(GSEA.Human.HFrEF) <- NULL
-      if (length(unlist(strsplit(names(GSEA.result.HFrEF)[i], split = "_"))) ==3) {
-        GSEA.Human.HFrEF$Celltype <- unlist(strsplit(names(GSEA.result.HFrEF)[i], split = "_"))[2]
-      }
-      if (length(unlist(strsplit(names(GSEA.result.HFrEF)[i], split = "_"))) ==4) {
-        GSEA.Human.HFrEF$Celltype <- paste0(unlist(strsplit(names(GSEA.result.HFrEF)[i], split = "_"))[2:3], collapse = "_")
-      }  
-      GSEA.Human.HFrEF <-  GSEA.Human.HFrEF %>% dplyr::select(Description, qvalues, Celltype, p.adjust,NES)
-      colnames(GSEA.Human.HFrEF) <- c("GSEA_Term","log2human","Celltype","p.adjust","NES")
-      DF.Human <- rbind(DF.Human,GSEA.Human.HFrEF)
-      DF.Human.list[[m]] <- DF.Human
-      }
-    }
-  }
 }
 
-#getting GSEAs for mice
-DF.Mice.list <- list()
-for (m in c("BP","MF","CC")) {
-  GSEA.Mice.HFrEF <- GSEA.result.HFrEF[[8]][[paste0("Markers_",m,"_result")]]
-  rownames(GSEA.Mice.HFrEF) <- NULL
-  if (length(unlist(strsplit(names(GSEA.result.HFrEF)[8], split = "_"))) ==3) {
-    GSEA.Mice.HFrEF$Celltype <- unlist(strsplit(names(GSEA.result.HFrEF)[8], split = "_"))[2]
+merged.DF.long$specific <- factor(merged.DF.long$specific, levels = c("Human specific","Commonly regulated","Mouse specific"))
+
+#get 20 most significant ones for Human
+H_spec.DF <- na.omit(merged.DF.long[merged.DF.long$specific == "Human specific",])
+H_spec.DF <- head(H_spec.DF[order(H_spec.DF$p, decreasing = F),],10)
+
+#get 20 most significant ones for Mice
+M_spec.DF <- na.omit(merged.DF.long[merged.DF.long$specific == "Mouse specific",])
+M_spec.DF <- head(M_spec.DF[order(M_spec.DF$p, decreasing = F),],10)
+
+#get 20 most significant ones for Both
+Both_spec.DF <- na.omit(merged.DF.long[merged.DF.long$specific == "Commonly regulated",])
+Both_spec.DF <- head(Both_spec.DF[order(Both_spec.DF$p, decreasing = F),],10)
+Both_spec.DF <- merged.DF.long[merged.DF.long$Row.names %in% Both_spec.DF$Row.names,]
+
+
+df.inbetw <- rbind(H_spec.DF, M_spec.DF)
+merged.DF.long.final <- rbind(df.inbetw, Both_spec.DF)
+
+# test.tmp <- head(merged.DF.long[order(merged.DF.long$p, decreasing = T),],60)
+# test.tmp <- head(merged.DF.long,50)
+
+#adjust some gsea terms
+merged.DF.long.final[merged.DF.long.final$Row.names == "regulation of canonical Wnt signaling pathway involved in cardiac muscle cell fate commitment",]$Row.names <- "reg. Wnt signaling pathway in cardiac muscle cell"
+merged.DF.long.final[merged.DF.long.final$Row.names == "regulation of canonical Wnt signaling pathway involved in heart development",]$Row.names <- "reg. Wnt signaling pathway in heart development"
+merged.DF.long.final[merged.DF.long.final$Row.names == "canonical Wnt signaling pathway involved in cardiac muscle cell fate commitment",]$Row.names <- "Wnt signaling pathway involved in cardiac muscle cell fate"
+
+merged.DF.long.final$Row.names <- factor(merged.DF.long.final$Row.names)
+
+
+library(RColorBrewer)
+ggplot(merged.DF.long.final, aes(x = Row.names, y = Species, color = NES, size = -log10((p)))) +
+  geom_point() +
+  scale_color_gradientn(colours = rev(brewer.pal(11,"RdBu")), guide = guide_colorbar(title = "NES"))+
+  xlab("Pathway Description") +
+  ylab("") +
+  theme_bw()+
+  facet_grid(~specific, scales = "free", space = "free")+
+  theme(axis.text.x = element_text(color = "black",angle = 90,hjust = 1, size = 14,vjust = 0.1),
+          axis.text.y = element_text(color = "black", size = 14, angle = 90, face = "bold", hjust = 0.5),
+          axis.title.x = element_blank(),
+          axis.title = element_text(size = 16, color = "black"),
+          plot.title = element_text(face = "bold", size = 16, hjust = 0.5),
+          axis.line = element_line(color = "black", size = .6),
+          strip.text.x = element_text(size = 14,face = "bold", color = "black"),
+          legend.position = "right",
+          legend.text = element_text(size = 14),
+          legend.title = element_text(size = 14, face = "bold"))
+
+ggsave(paste0(outputFolder,"/GSEA_Terms_Dotplot_Human_Both_Mice_Cardiomyocytes.svg"), width = 10, height = 9)
+  
+```
+
+#### 5.4.6.1 GO (Database) GSEA results in Dot plot for HFrEF Endothelial
+```{r}
+outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/GSEA_analysis"
+
+library(simplifyEnrichment)
+library(gridtext)
+#subsetting List for HFpEF samples
+GSEA.result.HFrEF <- GSEA.result[grep(pattern = "HFrEF" ,names(GSEA.result))]
+
+#just take Endothelial BP
+GSEA.result.HFrEF.EC <- GSEA.result.HFrEF[grep(pattern = "Endothelial" ,names(GSEA.result.HFrEF))]
+
+#for Endothelial
+lt <- list()
+lt[["Human HFrEF"]] <- GSEA.result.HFrEF$Human_Endothelial_HFrEF$Markers_BP_result
+lt[["Mice HFrEF"]] <- GSEA.result.HFrEF$`Mice_Endothelial_Mice-HFrEF`$Markers_BP_result
+# lt[["Human_EC"]] <- GSEA.result.HFrEF$Human_Endothelial_HFrEF$Markers_BP_result
+# lt[["Mice_EC"]] <- GSEA.result.HFrEF$`Mice_Endothelial_Mice-HFrEF`$Markers_BP_result
+
+
+
+#extract the Terms from both organism
+Human.GSEA.DF <- na.omit(lt$`Human HFrEF`)
+Mouse.GSEA.DF <- na.omit(lt$`Mice HFrEF`)
+
+#buld data frames
+Human.spec.DF <- Human.GSEA.DF
+Human.spec.DF <- Human.spec.DF %>%
+  dplyr::select(Description, NES, p.adjust) %>%
+  remove_rownames() %>%
+  column_to_rownames(var = "Description")
+colnames(Human.spec.DF) <- c("Human.NES", "Human.p.adjust")
+
+Mouse.spec.DF <- Mouse.GSEA.DF
+Mouse.spec.DF <- Mouse.spec.DF %>%
+  dplyr::select(Description, NES, p.adjust) %>%
+  remove_rownames() %>%
+  column_to_rownames(var = "Description")
+colnames(Mouse.spec.DF) <- c("Mouse.NES", "Mouse.p.adjust")
+
+#merge both data  frames
+merged.DF <- merge(Human.spec.DF, Mouse.spec.DF, by = "row.names", all = T)
+#change form
+merged.DF.long <- merged.DF %>% tidyr::pivot_longer(cols = starts_with("Human.") | starts_with("Mouse."),
+                                                    names_to = c("Species", ".value"),
+                                                    names_pattern = "(Human|Mouse)\\.(\\w+)")
+
+
+merged.DF.long$Species <- factor(merged.DF.long$Species, levels = c("Mouse","Human"))
+
+#initialize new column
+merged.DF.long$specific <- 0
+merged.DF.long$specific <- as.character(merged.DF.long$specific)
+
+for (desc in merged.DF.long$Row.names) {
+  
+  row.desc <- na.omit(merged.DF.long[merged.DF.long$Row.names == desc,])
+  
+  
+  if (nrow(row.desc) == 2) {
+    merged.DF.long[merged.DF.long$Row.names == desc,]$specific <- rep("Commonly regulated",2)
   }
-  if (length(unlist(strsplit(names(GSEA.result.HFrEF)[8], split = "_"))) ==4) {
-    GSEA.Mice.HFrEF$Celltype <- paste0(unlist(strsplit(names(GSEA.result.HFrEF)[8], split = "_"))[2:3], collapse = "_")
+  
+  if (nrow(row.desc) == 1 && row.desc$Species == "Human") {
+    merged.DF.long[merged.DF.long$Row.names == desc,]$specific <- "Human specific"
+  }
+  
+  if (nrow(row.desc) == 1 && row.desc$Species == "Mouse") {
+    merged.DF.long[merged.DF.long$Row.names == desc,]$specific <- "Mouse specific"
   }  
-  GSEA.Mice.HFrEF <-  GSEA.Mice.HFrEF %>% dplyr::select(Description, qvalues, Celltype, p.adjust,NES)
-  colnames(GSEA.Mice.HFrEF) <- c("GSEA_Term","log2mice","Celltype","p.adjust","NES")
-  DF.Mice <- GSEA.Mice.HFrEF
-  
-  
-  #extending data frame row wise by GSEA specific for their cell type
-  for (i in 9:length(GSEA.result.HFrEF)) {
-    species.celltype <- names(GSEA.result.HFrEF[i])
-    if ("Mice" %in% unlist(strsplit(species.celltype, split = "_"))) {
-      
-      #change the structure of the data frame
-      unlist(strsplit(species.celltype, split = "_"))[2]
-      GSEA.Mice.HFrEF <- GSEA.result.HFrEF[[i]][[paste0("Markers_",m,"_result")]]
-      if (!plyr::empty(GSEA.Mice.HFrEF)) {
-        rownames(GSEA.Mice.HFrEF) <- NULL
-        if (length(unlist(strsplit(names(GSEA.result.HFrEF)[i], split = "_"))) ==3) {
-          GSEA.Mice.HFrEF$Celltype <- unlist(strsplit(names(GSEA.result.HFrEF)[i], split = "_"))[2]
-        }
-        if (length(unlist(strsplit(names(GSEA.result.HFrEF)[i], split = "_"))) ==4) {
-          GSEA.Mice.HFrEF$Celltype <- paste0(unlist(strsplit(names(GSEA.result.HFrEF)[i], split = "_"))[2:3], collapse = "_")
-        }  
-        GSEA.Mice.HFrEF <-  GSEA.Mice.HFrEF %>% dplyr::select(Description, qvalues, Celltype, p.adjust,NES)
-        colnames(GSEA.Mice.HFrEF) <- c("GSEA_Term","log2mice","Celltype","p.adjust","NES")
-        DF.Mice <- rbind(DF.Mice,GSEA.Mice.HFrEF)
-        DF.Mice.list[[m]] <- DF.Mice
-      }
-    }
-  }
 }
 
-#function for subontology wise
-table.frame.final.list <- list()
-for (m in c("BP","MF","CC")) {
-  #get GSEAs combined in 1 df
-  pre.combined.DF <- merge(DF.Human.list[[m]],DF.Mice.list[[m]], by="GSEA_Term", all =T)
-  
-  #get a new data frame with info about cell types for every provided GSEA term
-  GSEA_Terms <- rep(unique(pre.combined.DF$GSEA_Term),each=length(unique(SeuratObject.combined.annotated$cell_type)))
-  Celltypes <- unique(levels(SeuratObject.combined.annotated$cell_type))
-  
-  
-  table.frame <- data.frame(GSEA_Term = GSEA_Terms,
-                    Celltype = rep(Celltypes,length(GSEA_Terms)/7)
-                    )
-  #add columns
-  table.frame$Human <- NA #info if GSEA term in human
-  table.frame$p.adjust.h <- NA #p.adjust of GSEA
-  table.frame$NES.h <- NA # Normalized enrichment score
-  
-  table.frame$Mouse <- NA
-  table.frame$p.adjust.m <- NA
-  table.frame$NES.m <- NA
-  #subset for human
-  table.react <- pre.combined.DF
-  table.react.h <- table.react[1:5]
-  table.react.h[,2] <- NULL
-  #set same colnames for semi_join function
-  colnames(table.react.h) <- c("GSEA_Term","Celltype","p.adjust","NES")
-  
-  #add human info if GO term is regulated
-  for (i in 1:nrow(table.frame)) {
-    if (!plyr::empty(semi_join(table.frame[i,], table.react.h, by=c("GSEA_Term","Celltype")))) {
-      table.frame[i,]$Human <- "YES"
-      sub.tbl.GSEA <- table.react.h[table.react.h$GSEA_Term == table.frame[i,]$GSEA_Term,] # get rows with p.adj and GR
-      sub.tbl.GSEA.Celltype <- unique(sub.tbl.GSEA[sub.tbl.GSEA$Celltype == table.frame[i,]$Celltype,]) # get Cell.type
-      table.frame[i,]$p.adjust.h <- sub.tbl.GSEA.Celltype$p.adjust
-      table.frame[i,]$NES.h <- sub.tbl.GSEA.Celltype$NES
-    }
-    if (plyr::empty(semi_join(table.frame[i,], table.react.h, by=c("GSEA_Term","Celltype")))) {
-      table.frame[i,]$Human <- "NO"
-    }
-  }
-  
-  #subset for mice
-  table.react.m <- pre.combined.DF
-  table.react.m[2:6] <- NULL 
-  
-  #set same colnames for semi_join function
-  colnames(table.react.m) <- c("GSEA_Term","Celltype","p.adjust","NES")
-  
-  #add human info if GO term is regulated
-  for (i in 1:nrow(table.frame)) {
-    if (!plyr::empty(semi_join(table.frame[i,], table.react.m, by=c("GSEA_Term","Celltype")))) {
-      table.frame[i,]$Mouse <- "YES"
-      sub.tbl.GSEA <- table.react.m[table.react.m$GSEA_Term == table.frame[i,]$GSEA_Term,] # get rows with p.adj and GR
-      sub.tbl.GSEA.Celltype <- unique(sub.tbl.GSEA[sub.tbl.GSEA$Celltype == table.frame[i,]$Celltype,]) # get Cell.type specific row
-      table.frame[i,]$p.adjust.m <- sub.tbl.GSEA.Celltype$p.adjust
-      table.frame[i,]$NES.m <- sub.tbl.GSEA.Celltype$NES
-    }
-    if (plyr::empty(semi_join(table.frame[i,], table.react.m, by=c("GSEA_Term","Celltype")))) {
-      table.frame[i,]$Mouse <- "NO"
-    }
-  }
-  
-  #filter out rows where both are NO
-  table.frame.final <- subset(table.frame, Human !="NO" | Mouse !="NO")
-  table.frame.final.list[[m]] <- table.frame.final
-}
+merged.DF.long$specific <- factor(merged.DF.long$specific, levels = c("Human specific","Commonly regulated","Mouse specific"))
 
-#fancy reactive table # set m as "BP","MF", "CC"
-library(reactable)
-reactable(table.frame.final.list[[m]],
-          groupBy = "Celltype",
-          columns = list(
-            Human=colDef(cell=function(value){
-              if (value== "NO") "\u274c No" else "\u2714\ufe0f Yes"
-            }),
-            Mouse=colDef(cell=function(value){
-              if (value== "NO") "\u274c No" else "\u2714\ufe0f Yes"
-            }),
-            p.adjust.h=colDef(na = "-",format = colFormat(digits = 5)),
-            p.adjust.m=colDef(na = "-",format = colFormat(digits = 5)),
-            NES.h=colDef(na="-", sortable = T,format = colFormat(digits = 5)),
-            NES.m=colDef(na="-", sortable = T,format = colFormat(digits = 5))
-            ),
-          striped = TRUE,
-          highlight = TRUE,
-          bordered = TRUE,
-          filterable = TRUE,
-          rownames = FALSE,
-          resizable = TRUE,
-          theme = reactableTheme(
-            borderColor = "#dfe2e5",
-            stripedColor = "#f6f8fa",
-            highlightColor = "#f0f5f9",
-            cellPadding = "8px 12px",
-            style = list(fontFamily = "-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif")))
+#get 20 most significant ones for Human
+H_spec.DF <- na.omit(merged.DF.long[merged.DF.long$specific == "Human specific",])
+H_spec.DF <- head(H_spec.DF[order(H_spec.DF$p, decreasing = F),],10)
 
-for (m in c("BP","MF","CC")) {
-  #static excell sheet... 
-  openxlsx::write.xlsx(table.frame.final.list[[m]]
-                       , file = paste0(outputFolder,"/GSEA_analysis/",m,"_GSEA_Table_DEG_HFrEF.xlsx")) 
-}
-#clean up 
-rm(DF.Human,DF.Mice)
-rm(GSEA.Human.HFrEF,GSEA.Mice.HFrEF)
-rm(table.frame,table.frame.final,table.react,table.react.h,table.react.m)
-rm(pre.combined.DF)
-rm(GSEA.celltype)
-rm(sub.tbl.GSEA, sub.tbl.GSEA.Celltype)
-rm(table.frame.final.list)
-rm(DF.Human.list,DF.Mice.list)
-rm(GSEA.result.HFrEF)
+#get 20 most significant ones for Mice
+M_spec.DF <- na.omit(merged.DF.long[merged.DF.long$specific == "Mouse specific",])
+M_spec.DF <- head(M_spec.DF[order(M_spec.DF$p, decreasing = F),],10)
 
+#get 20 most significant ones for Both
+Both_spec.DF <- na.omit(merged.DF.long[merged.DF.long$specific == "Commonly regulated",])
+Both_spec.DF <- head(Both_spec.DF[order(Both_spec.DF$p, decreasing = F),],10)
+Both_spec.DF <- merged.DF.long[merged.DF.long$Row.names %in% Both_spec.DF$Row.names,]
+
+
+df.inbetw <- rbind(H_spec.DF, M_spec.DF)
+merged.DF.long.final <- rbind(df.inbetw, Both_spec.DF)
+
+# test.tmp <- head(merged.DF.long[order(merged.DF.long$p, decreasing = T),],60)
+# test.tmp <- head(merged.DF.long,50)
+
+#adjust some gsea terms
+merged.DF.long.final[merged.DF.long.final$Row.names == "regulation of canonical Wnt signaling pathway involved in cardiac muscle cell fate commitment",]$Row.names <- "reg. Wnt signaling pathway in cardiac muscle cell"
+merged.DF.long.final[merged.DF.long.final$Row.names == "regulation of canonical Wnt signaling pathway involved in heart development",]$Row.names <- "reg. Wnt signaling pathway in heart development"
+merged.DF.long.final[merged.DF.long.final$Row.names == "canonical Wnt signaling pathway involved in cardiac muscle cell fate commitment",]$Row.names <- "Wnt signaling pathway involved in cardiac muscle cell fate"
+merged.DF.long.final[merged.DF.long.final$Row.names == "regulation of ventricular cardiac muscle cell membrane repolarization",]$Row.names <- "reg. ventr. cardiac muscle cell membrane repolarization"
+
+merged.DF.long.final$Row.names <- factor(merged.DF.long.final$Row.names)
+
+
+library(RColorBrewer)
+ggplot(merged.DF.long.final, aes(x = Row.names, y = Species, color = NES, size = -log10((p)))) +
+  geom_point() +
+  scale_color_gradientn(colours = rev(brewer.pal(11,"RdBu")), guide = guide_colorbar(title = "NES"))+
+  xlab("Pathway Description") +
+  ylab("") +
+  theme_bw()+
+  facet_grid(~specific, scales = "free", space = "free")+
+  theme(axis.text.x = element_text(color = "black",angle = 90,hjust = 1, size = 14,vjust = 0.1),
+          axis.text.y = element_text(color = "black", size = 14, angle = 90, face = "bold", hjust = 0.5),
+          axis.title.x = element_blank(),
+          axis.title = element_text(size = 16, color = "black"),
+          plot.title = element_text(face = "bold", size = 16, hjust = 0.5),
+          axis.line = element_line(color = "black", size = .6),
+          strip.text.x = element_text(size = 14,face = "bold", color = "black"),
+          legend.position = "right",
+          legend.text = element_text(size = 14),
+          legend.title = element_text(size = 14, face = "bold"))
+
+ggsave(paste0(outputFolder,"/GSEA_Terms_Dotplot_Human_Both_Mice_Endothelial.svg"), width = 10, height = 9)
+  
+
+#Build SEM barplots 
+
+outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/SEM_graphs"
+
+Idents(SeuratObject.combined.annotated) <- "condition"
+SeuratObject.combined.annotated.HFrEF <- subset(SeuratObject.combined.annotated, idents = c("Mice-CTRL","Mice-HFrEF","Human-CTRLlv","Human-HFrEF")) 
+
+Idents(SeuratObject.combined.annotated.HFrEF) <- "cell_type"
+SeuratObject.combined.annotated.HFrEF.EC <- subset(SeuratObject.combined.annotated.HFrEF, idents = c("Endothelial")) 
+
+
+#Heart contraction
+tmp <- "ATP1A2/HSPB7/CASQ2/VEGFB/GJA1/ABCC9/CORIN/TMEM65/GATA4/EXT1/GSTO1/POPDC2/SRI/ASB3/PKP2/PPP1R13L/CHRM2/MYH6/SGCG/ANK2/CDC42/S100A1/TNNI3K/AGT/ATP1B1/DES/SUMO1/SLC1A1/CALM2/CCN2/SLC8A1/SOD1/TNNT2/HSP90AA1/DMD/TRDN/GSN/TNNI3/CAV1/PDE5A/TPM1/SGCD/MYL7/CACNB2/CTNNA3/PLN/FGF12/TCAP/MYL3/CSRP3/RYR2/TNNC1/MYL2/ACTC1"
+
+tmp <- unlist(strsplit(tmp, split = "/"))
+
+#get only genes which are DEGs in Human and not in Mice
+EC.Human.HFrEF <- Differential.expression.feature.list.contrast_celltypes$Human_Endothelial_HFrEF$Markers
+In.Human.DEG <- EC.Human.HFrEF[rownames(EC.Human.HFrEF) %in% tmp,]
+
+#get the mice ones
+EC.Mice.HFrEF <- Differential.expression.feature.list.contrast_celltypes$`Mice_Endothelial_Mice-HFrEF`$Markers
+In.Mice.DEG <- EC.Mice.HFrEF[rownames(EC.Mice.HFrEF) %in% tmp,]
+
+#get the genes which are Human unique
+Human.unique <- In.Human.DEG[!rownames(In.Human.DEG) %in% rownames(In.Mice.DEG),]
+Human.unique <- rownames(Human.unique) # just the gene names for the function below
+
+heartcontr.genes <- Human.unique
+
+#axongenesis
+tmp <- "VEGFA/PLXND1/SEMA4C/GOLGA4/PLXNA2/SEMA3G/FN1/SEMA3F/SEMA6C/GDI1/RUFY3/DISC1/STK25/MACF1/BMPR2/PLXNA4/ARHGAP4/SKIL/SPART/BRAF/KIF13B/PAFAH1B1/SIPA1L1/RTN4/PLXNB2/GSK3B/PAK2/ULK1/EFNA1/ARHGAP35/NIN/SMURF1/SEMA6B/SEMA6A/SYNGAP1/DAB1/HDAC6/DIXDC1/PAK3/BRSK1/SEMA6D"
+#get only genes which are DEGs in Human and not in Mice
+EC.Human.HFrEF <- Differential.expression.feature.list.contrast_celltypes$Human_Endothelial_HFrEF$Markers
+In.Human.DEG <- EC.Human.HFrEF[rownames(EC.Human.HFrEF) %in% tmp,]
+
+#get the mice ones
+EC.Mice.HFrEF <- Differential.expression.feature.list.contrast_celltypes$`Mice_Endothelial_Mice-HFrEF`$Markers
+In.Mice.DEG <- EC.Mice.HFrEF[rownames(EC.Mice.HFrEF) %in% tmp,]
+
+#get the genes which are Human unique
+Human.unique <- In.Human.DEG[!rownames(In.Human.DEG) %in% rownames(In.Mice.DEG),]
+Human.unique <- rownames(Human.unique) # just the gene names for the function below
+
+axongenesis.genes <- Human.unique
+
+
+ListTest <- list()
+ListTest[[1]] <- c("Mice-CTRL","Mice-HFrEF")
+ListTest[[2]] <- c("Human-CTRLlv","Human-HFrEF")
+
+#down genes
+diff.genes <- c("HSP90AA1","FGF12","ARHGAP4","SEMA3G","SPART","DAB1")
+
+same.genes <- c("PGAM2","NDUFA1","TMEM126A","UQCRFS1","COX7A2","COX5B")
+
+
+DO.Mean.SEM.Graphs(SeuratObject = SeuratObject.combined.annotated.HFrEF.EC,
+                   Features = same.genes,
+                   ListTest = ListTest)
+
+#down
+ggsave(filename = paste0(outputFolder,"/ECs_genes_same.svg"),device = "svg", width = 14, height = 5)
 ```
 
 ##5.5 Circos plot Human specific mice matched
@@ -2253,10 +2563,6 @@ rm(Human_Markers.catch, Human.only.DEG.list)
 
 ##5.6 Sankey diagramm for visualizing distribution of DEGs in biological contrasts 
 
-
-###5.6.1 DEGs species specific upregulated and celltype specific, HFrEF ONLY (includes only and both species groups) 
-
-
 ```{r}
 
 outputFolder<- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/venn_plot_sankey_plot/"
@@ -2283,9 +2589,7 @@ for (cell.type in levels(SeuratObject.combined.annotated$cell_type)) {
     
     #set human and mice DEG data frames from the list
     Human.DEG <- DEG.list.celltype.contrast[[1]]$Markers
-    Human.DEG <- Human.DEG[Human.DEG$avg_log2FC > 0,] # pos. log2
     Mice.DEG <- DEG.list.celltype.contrast[[2]]$Markers
-    Mice.DEG <- Mice.DEG[Mice.DEG$avg_log2FC > 0,] # pos. log2
 
     #human
     Human.DEG <- Human.DEG[!(rownames(Human.DEG) %in% rownames(Mice.DEG)),] # get Human specific entries
@@ -2297,225 +2601,8 @@ for (cell.type in levels(SeuratObject.combined.annotated$cell_type)) {
     
     #both
     All.human.DEG <- DEG.list.celltype.contrast[[1]]$Markers
-    All.human.DEG <- All.human.DEG[All.human.DEG$avg_log2FC > 0,] # only pos human 
     All.mice.DEG <- DEG.list.celltype.contrast[[2]]$Markers
-    All.mice.DEG <- All.mice.DEG[All.mice.DEG$avg_log2FC > 0,] # only pos mice
-    
-    Both.DEG.list[["Both"]][[cell.type]][["HFrEF"]] <- All.human.DEG[(rownames(All.human.DEG) %in% rownames(All.mice.DEG)),]
-    
-  } else {Human.only.DEG.list[["Human"]][[cell.type]][["HFrEF"]] <- DEG.list.celltype[[1]]$Markers} 
-}
-# combine lists 
-DEG.list.final <- do.call("c",list(Human.only.DEG.list,Mice.only.DEGs.list,Both.DEG.list))
 
-#building the source and target column for sankey plot
-cell.type.h <- rep(levels(SeuratObject.combined.annotated$cell_type), each=1)
-cell.type.h <- paste0("Human ",cell.type.h)
-cell.type.both.h <- rep(levels(SeuratObject.combined.annotated$cell_type), each=1)
-cell.type.both.h <- paste0("Human ",cell.type.both.h)
-cell.type.h <- unlist(unname(Map("c",cell.type.h,cell.type.both.h))) # very import for ordering
-
-cell.type.m <- rep(levels(SeuratObject.combined.annotated$cell_type), each=1)
-cell.type.m <- paste0("Mouse ",cell.type.m)
-cell.type.both.m <- rep(levels(SeuratObject.combined.annotated$cell_type), each=1)
-cell.type.both.m <- paste0("Mouse ",cell.type.both.m)
-cell.type.m <- unlist(unname(Map("c",cell.type.m,cell.type.both.m))) # very import for ordering
-
-targets.h <- rep(c("HFrEF Human","HFrEF Both"),length(levels(SeuratObject.combined.annotated$cell_type)))
-targets.m <- rep(c("HFrEF Mouse","HFrEF Both"),length(levels(SeuratObject.combined.annotated$cell_type)))
-
-#get data from cell type DEG analysis and sort by human and mice
-h.list <- DEG.list.final[grep(pattern = "Human" ,names(DEG.list.final))]
-m.list <- DEG.list.final[grep(pattern = "Mice" ,names(DEG.list.final))]
-both.list <- DEG.list.final[grep(pattern = "Both" ,names(DEG.list.final))]
-
-#human list of length of rownames
-h.rownames.list <- list()
-for (cell.type in names(h.list[["Human"]])) {
-  for (condition in names(h.list[["Human"]][[cell.type]])) {
-    h.rownames.list[[paste0("Human_",cell.type,"_",condition)]] <-  length(rownames(h.list[["Human"]][[cell.type]][[condition]])) 
-  }
-  for (condition in names(both.list[["Both"]][[cell.type]])) {
-    h.rownames.list[[paste0("Both_",cell.type,"_",condition)]] <- length(rownames(both.list[["Both"]][[cell.type]][[condition]]))
-  }
-}
-#mice list of length of rownames
-m.rownames.list <- list()
-for (cell.type in names(m.list[["Mice"]])) {
-  for (condition in names(m.list[["Mice"]][[cell.type]])) {
-    m.rownames.list[[paste0("Mice_",cell.type,"_",condition)]] <-  length(rownames(m.list[["Mice"]][[cell.type]][[condition]])) 
-  }
-  for (condition in names(both.list[["Both"]][[cell.type]])) {
-    m.rownames.list[[paste0("Both_",cell.type,"_",condition)]] <- length(rownames(both.list[["Both"]][[cell.type]][[condition]]))
-  }
-}
-
-# connect the source and targets and add the values
-sankey.source <- c(cell.type.h, targets.m)
-sankey.target <- c(targets.h,cell.type.m)
-sankey.value <- c(unlist(h.rownames.list), unlist(m.rownames.list))
-
-#build the data frame for plot
-links <- data.frame(source= sankey.source,
-                    target=sankey.target,
-                    value= sankey.value,
-                    group= NA)
-
-##add groups to data by their condition, for color code
-for (i in 1:nrow(links)) {
-  s.name <- names(sankey.value)[i]
-  if ("Human" %in% unlist(strsplit(s.name, split = "_"))) {
-    links[i,]$group <- "type_a"
-    }
-  if ("Mice" %in% unlist(strsplit(s.name, split = "_"))) {
-    links[i,]$group <- "type_c"
-  }
-  if ("Both" %in% unlist(strsplit(s.name, split = "_"))) {
-    links[i,]$group <- "type_b"
-  }
-}
-
-#data frame containing node names
-nodes <- data.frame(
-  name=unique(c(as.character(links$source),as.character(links$target))),
-  group="type_0"
-)
-rownames(nodes) <- nodes$name
-
-for (s.name in rownames(nodes)) {
-  if ("HFrEF Mouse" %in% s.name) {
-    nodes[s.name,]$group <- "type_3"
-  }
-  if ("HFrEF Human" %in% s.name) {
-    nodes[s.name,]$group <- "type_1"
-  }
-  if ("HFrEF Both" %in% s.name) {
-    nodes[s.name,]$group <- "type_2"
-  }
-}
-
-
-
-# Give a color for each group:
-sankey_color <- 'd3.scaleOrdinal() .domain(["type_a", "type_b", "type_c","type_d", "type_0", "type_1","type_2","type_3"]) .range(["#E3B448","#CBD18F","#3A6B35", "#RRGGBBAA" , "darkgrey","#E3B448" ,"#CBD18F","#3A6B35"])'
-
-#stupid package no parameters for node location, add rows for nodes to be in the middle for mice
-links[29,] <- NA
-links[29,]$source <- "Human Cardiomyocytes"
-links[29,]$target <- "HFrEF Mouse"
-links[29,]$value <- 0
-links[29,]$group <- "type_d"
-
-links$IDsource <- match(links$source, nodes$name)-1 
-links$IDtarget <- match(links$target, nodes$name)-1
-
-#neuro kick
-links[27:28,] <- NA # kick neuro, cluster too small, too little DEG detection
-links[13:14,] <- NA
-links <- links[complete.cases(links),]
-nodes[7,] <- NA # kick neuros
-nodes[17,] <- NA
-nodes <- nodes[complete.cases(nodes),]
-
-p <- sankeyNetwork(Links = links, Nodes = nodes,
-                   Source = "IDsource", Target= "IDtarget",
-                   Value = "value", NodeID = "name",
-                   sinksRight = FALSE,
-                   colourScale=sankey_color, LinkGroup="group", NodeGroup = "group", fontSize = 0
-                   )
-p
-
-#as a stacked percent barplot
-library(ggplot2)
-
-sankey.value.unique <- sankey.value[!duplicated(sankey.value)] # both is always 2 times in there for the sankey plot
-barplot.DF <- data.frame(cell.type = rep(levels(SeuratObject.combined.annotated$cell_type),each=3), # 3 status for DEGS
-           specific = rep(c("Human","Both","Mice"), times=7),
-           value = NA) # 7 cell types
-
-#reorder sankey.value.unique
-for (i in names(sankey.value.unique)) {
-  vals <- sankey.value.unique[i]
-  names.split <- unlist(strsplit(names(vals), split = "_"))[1:2] # get the value name, dont need condition
-  barplot.DF[barplot.DF$specific %in% names.split[1] & barplot.DF$cell.type %in% names.split[2],]$value <- vals
-}
-barplot.DF <- barplot.DF[1:18,] # kick out Neuro
-
-ggplot(barplot.DF, aes(fill=specific, y=value,x=cell.type))+
-  geom_bar(position = "fill", stat= "identity")+
-  scale_fill_manual(values = rep(c("#CBD18F","#E3B448","#3A6B35"),5) #20 colours set for more change number
-                      , name = "Condition")+
-  labs(title = "", y = "DEG composition") +
-  coord_flip()+
-  theme_classic() +
-  theme(axis.text.x = element_text(face = "bold", color = "black",angle = 45,hjust = 1, size = 15),
-          axis.text.y = element_text(color = "black", size = 15),
-          axis.title.x = element_blank(),
-          axis.title = element_text(size = 18, color = "black"),
-          plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
-          axis.line = element_line(color = "black", size = .6),
-          strip.text.x = element_text(size = 20, color = "black"),
-          legend.position = "right")
-
-ggsave(paste0(outputFolder, "/Stacked_bar_plot/DEG_stacked_bar_plot_upregulated.svg"), width = 8, height = 5)
-
-#clean up 
-rm(p, links, nodes, sankey_color,h.rownames.list,m.rownames.list,
-   h.list,m.list,cell.type.h,cell.type.m,targets.h)
-rm(DEG.list,DEG.list.celltype,DEG.list.celltype.contrast,DEG.list.final, Both.DEG.list,both.list)
-rm(Human.only.DEG.list,Mice.only.DEGs.list)
-rm(All.human.DEG,All.mice.DEG,Human.DEG,Mice.DEG)
-rm(barplot.DF)
-
-```
-
-###5.6.2 DEGs species specific downregulated and celltype specific, HFrEF ONLY (includes only and both species groups) 
-
-
-```{r}
-
-outputFolder<- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/venn_plot_sankey_plot/"
-
-library(networkD3)
-
-#get the DEG list 
-DEG.list <- Differential.expression.feature.list.contrast_celltypes
-
-##get the DEGs specific for organism and similar
-
-Human.only.DEG.list <- list()
-Mice.only.DEGs.list <- list()
-Both.DEG.list <- list() # overlap list
-
-# gets only DEGs in the lists with pos. log2fc
-for (cell.type in levels(SeuratObject.combined.annotated$cell_type)) {
-  #grep for cell type
-  DEG.list.celltype <- DEG.list[grep(pattern = cell.type ,names(DEG.list))] # cell type specific entries
-  names.list.split <- unlist(strsplit(names(DEG.list.celltype), split = "_"))
-  #grep for condition
-  if ("HFrEF" %in% names.list.split && "Mice-HFrEF" %in% names.list.split) {
-    DEG.list.celltype.contrast <- DEG.list.celltype[grep(pattern = paste(c("HFrEF","Mice-HFrEF"),collapse ="|") ,names(DEG.list.celltype))] # get HFrEF specific entries
-    
-    #set human and mice DEG data frames from the list
-    Human.DEG <- DEG.list.celltype.contrast[[1]]$Markers
-    Human.DEG <- Human.DEG[Human.DEG$avg_log2FC < 0,] # neg. log2
-    Mice.DEG <- DEG.list.celltype.contrast[[2]]$Markers
-    Mice.DEG <- Mice.DEG[Mice.DEG$avg_log2FC < 0,] # neg. log2
-
-    #human
-    Human.DEG <- Human.DEG[!(rownames(Human.DEG) %in% rownames(Mice.DEG)),] # get Human specific entries
-    Human.only.DEG.list[["Human"]][[cell.type]][["HFrEF"]] <- Human.DEG
-    
-    #mice
-    Mice.DEG <- Mice.DEG[!(rownames(Mice.DEG) %in% rownames(Human.DEG)),] #get mice specific entries
-    Mice.only.DEGs.list[["Mice"]][[cell.type]][["HFrEF"]] <- Mice.DEG
-    
-    #both
-    All.human.DEG <- DEG.list.celltype.contrast[[1]]$Markers
-    All.human.DEG <- All.human.DEG[All.human.DEG$avg_log2FC < 0,] # only neg human 
-    All.mice.DEG <- DEG.list.celltype.contrast[[2]]$Markers
-    All.mice.DEG <- All.mice.DEG[All.mice.DEG$avg_log2FC < 0,] # only neg mice
-    
     Both.DEG.list[["Both"]][[cell.type]][["HFrEF"]] <- All.human.DEG[(rownames(All.human.DEG) %in% rownames(All.mice.DEG)),]
     
   } else {Human.only.DEG.list[["Human"]][[cell.type]][["HFrEF"]] <- DEG.list.celltype[[1]]$Markers} 
@@ -2622,8 +2709,7 @@ links[29,]$target <- "HFrEF Mouse"
 links[29,]$value <- 0
 links[29,]$group <- "type_d"
 
-links$IDsource <- match(links$source, nodes$name)-1 
-links$IDtarget <- match(links$target, nodes$name)-1
+
 
 #neuro kick
 links[27:28,] <- NA # kick neuro, cluster too small, too little DEG detection
@@ -2633,7 +2719,8 @@ nodes[7,] <- NA # kick neuros
 nodes[17,] <- NA
 nodes <- nodes[complete.cases(nodes),]
 
-
+links$IDsource <- match(links$source, nodes$name)-1 
+links$IDtarget <- match(links$target, nodes$name)-1
 
 p <- sankeyNetwork(Links = links, Nodes = nodes,
                    Source = "IDsource", Target= "IDtarget",
@@ -2642,53 +2729,181 @@ p <- sankeyNetwork(Links = links, Nodes = nodes,
                    colourScale=sankey_color, LinkGroup="group", NodeGroup = "group", fontSize = 0
                    )
 p
-
-
-#as a stacked percent barplot
-library(ggplot2)
-
-sankey.value.unique <- sankey.value[!duplicated(sankey.value)] # both is always 2 times in there for the sankey plot
-barplot.DF <- data.frame(cell.type = rep(levels(SeuratObject.combined.annotated$cell_type),each=3), # 3 status for DEGS
-           specific = rep(c("Human","Both","Mice"), times=7),
-           value = NA) # 7 cell types
-
-#reorder sankey.value.unique
-for (i in names(sankey.value.unique)) {
-  vals <- sankey.value.unique[i]
-  names.split <- unlist(strsplit(names(vals), split = "_"))[1:2] # get the value name, dont need condition
-  barplot.DF[barplot.DF$specific %in% names.split[1] & barplot.DF$cell.type %in% names.split[2],]$value <- vals
-}
-
-barplot.DF <- barplot.DF[1:18,]
-
-ggplot(barplot.DF, aes(fill=specific, y=value,x=cell.type))+
-  geom_bar(position = "fill", stat= "identity")+
-  scale_fill_manual(values = rep(c("#CBD18F","#E3B448","#3A6B35"),5) #15 colours set for more change number
-                      , name = "Condition")+
-  labs(title = "", y = "DEG composition") +
-  coord_flip()+
-  theme_classic() +
-  theme(axis.text.x = element_text(face = "bold", color = "black",angle = 45,hjust = 1, size = 15),
-          axis.text.y = element_text(color = "black", size = 15),
-          axis.title.x = element_blank(),
-          axis.title = element_text(size = 18, color = "black"),
-          plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
-          axis.line = element_line(color = "black", size = .6),
-          strip.text.x = element_text(size = 20, color = "black"),
-          legend.position = "right")
-
-ggsave(paste0(outputFolder, "/Stacked_bar_plot/DEG_stacked_bar_plot_downregulated.svg"), width = 8, height = 5)
-
-#clean up 
-rm(p, links, nodes, sankey_color,h.rownames.list,m.rownames.list,
-   h.list,m.list,cell.type.h,cell.type.m,targets.h)
-rm(DEG.list,DEG.list.celltype,DEG.list.celltype.contrast,DEG.list.final, Both.DEG.list,both.list)
-rm(Human.only.DEG.list,Mice.only.DEGs.list)
-rm(All.human.DEG,All.mice.DEG,Human.DEG,Mice.DEG)
-rm(barplot.DF)
 ```
 
+##5.7 Log2FC Heatmap  
+```{r}
 
+outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/Expression_Heatmaps/"
+
+library(dplyr)
+
+#build data frame with log2FC for every gene sorted by cell type HFrEF
+DF.list.HFrEF <- Differential.expression.feature.list.contrast_celltypes.no.tresh[grep(pattern = "HFrEF" ,names(Differential.expression.feature.list.contrast_celltypes.no.tresh))]
+
+
+
+#add cell type info
+for (cell_type in names(DF.list.HFrEF)) {
+  DF.list.HFrEF[[cell_type]]$Markers[["gene"]] <- rownames(DF.list.HFrEF[[cell_type]]$Markers)
+  # DF.list.HFrEF[[cell_type]]$Markers[["cell_type"]] <- unlist(strsplit(cell_type, split = "_"))[2]
+  cond <- ifelse(unlist(strsplit(cell_type, split = "_"))[3] == "HFrEF", "Human-HFrEF", "Mice-HFrEF")
+  DF.list.HFrEF[[cell_type]]$Markers[["condition"]] <- cond
+  DF.list.HFrEF[[cell_type]]$Markers[["cell_type"]] <- ifelse("Human-HFrEF" %in% cond, paste0("H_",unlist(strsplit(cell_type, split = "_"))[2]), paste0("M_",unlist(strsplit(cell_type, split = "_"))[2]))
+  rownames(DF.list.HFrEF[[cell_type]]$Markers) <- NULL
+  
+}
+
+#make one big data frame
+collected.DF <- DF.list.HFrEF$Human_Cardiomyocytes_HFrEF$Markers
+
+for (k in 2:length(names(DF.list.HFrEF))) {
+    collected.DF <- rbind(collected.DF, DF.list.HFrEF[[k]]$Markers, make.row.names = T)
+}
+
+#set log2fc to 0 if not significant
+collected.DF$avg_log2FC <- ifelse(collected.DF$p_val > 0.05, 0, collected.DF$avg_log2FC)
+
+
+
+# Remove the column from the data frame
+heatmap.data <- collected.DF %>% dplyr::select(gene, avg_log2FC, condition, cell_type)
+heatmap.data <- heatmap.data[order(heatmap.data$gene, decreasing = F),]
+
+heatmap.mat <- data.frame("Cardiomyocytes.H" = heatmap.data[heatmap.data$cell_type == "H_Cardiomyocytes",]$avg_log2FC,
+           "Endothelial.H" = heatmap.data[heatmap.data$cell_type == "H_Endothelial",]$avg_log2FC,
+           "Pericytes.H" = heatmap.data[heatmap.data$cell_type == "H_Pericytes",]$avg_log2FC,
+           "Fibroblasts.H" = heatmap.data[heatmap.data$cell_type == "H_Fibroblasts",]$avg_log2FC,
+           "Smooth.Muscle.H" = heatmap.data[heatmap.data$cell_type == "H_Smooth.Muscle",]$avg_log2FC,
+           "Immune.cells.H" = heatmap.data[heatmap.data$cell_type == "H_Immune.cells",]$avg_log2FC,
+           # "Neuro.H" = heatmap.data[heatmap.data$cell_type == "H_Neuro",]$avg_log2FC,
+           "Cardiomyocytes.M" = heatmap.data[heatmap.data$cell_type == "M_Cardiomyocytes",]$avg_log2FC,
+           "Endothelial.M" = heatmap.data[heatmap.data$cell_type == "M_Endothelial",]$avg_log2FC,
+           "Pericytes.M" = heatmap.data[heatmap.data$cell_type == "M_Pericytes",]$avg_log2FC,
+           "Fibroblasts.M" = heatmap.data[heatmap.data$cell_type == "M_Fibroblasts",]$avg_log2FC,
+           "Smooth.Muscle.M" = heatmap.data[heatmap.data$cell_type == "M_Smooth.Muscle",]$avg_log2FC,
+           "Immune.cells.M" = heatmap.data[heatmap.data$cell_type == "M_Immune.cells",]$avg_log2FC,
+           # "Neuro.M" = heatmap.data[heatmap.data$cell_type == "M_Neuro",]$avg_log2FC,
+           row.names = unique(heatmap.data$gene))
+
+
+heatmap.mat <- as.matrix(heatmap.mat)
+
+
+
+
+
+#BUILD TWO HEATMAPS CALUCLATE Z_SCORE INDIVIDUALLY AND BRING THEM BACK TOGETHER
+scale_this <- function(x){
+  (x - mean(x, na.rm=TRUE)) / sd(x, na.rm=TRUE)
+}
+
+
+#split variable
+column_split = rep("Cardiomyocytes",12)
+column_split[c(2,8)] = "Endothelial"
+column_split[c(4,10)] = "Fibroblasts"
+column_split[c(6,12)] = "Immune cells"
+column_split[c(3,9)] = "Pericytes"
+column_split[c(5,11)] = "Smooth Muscle"
+
+#change levels
+column_split <- factor(column_split, levels = c("Cardiomyocytes",
+                                                "Endothelial",
+                                                "Fibroblasts",
+                                                "Immune cells",
+                                                "Pericytes",
+                                                "Smooth Muscle"))
+
+library(circlize)
+library(ComplexHeatmap)
+
+
+
+
+#please set this seed else the revalue gives wrong re-adjustments
+set.seed(8555)
+kmeans.heatmap.mat <-kmeans(heatmap.mat, 40)
+sort(table(kmeans.heatmap.mat$cluster), decreasing = T)
+
+
+kmeans.heatmap.mat$cluster <- as.character(kmeans.heatmap.mat$cluster)
+
+kmeans.heatmap.mat$cluster <- plyr::revalue(kmeans.heatmap.mat$cluster, c("29" = "1",
+                                                          "13" = "2",
+                                                          "28" = "3",
+                                                          "11" = "4",
+                                                          "6" = "5",
+                                                          "31" = "6",
+                                                          "27" = "7",
+                                                          "35" = "8",
+                                                          "23" = "9",
+                                                          "37" = "10",
+                                                          "16" = "11",
+                                                          "33" = "12",
+                                                          "3" = "13",
+                                                          "22" = "14",
+                                                          "32" = "15",
+                                                          "17" = "16",
+                                                          "39" = "17",
+                                                          "30" = "18",
+                                                          "5" = "19",
+                                                          "26" = "20",
+                                                          "2" = "21",
+                                                          "10" = "22",
+                                                          "40" = "23",
+                                                          "1" = "24",
+                                                          "19" = "25",
+                                                          "24" = "26",
+                                                          "38" = "27",
+                                                          "15" = "28",
+                                                          "8" = "29",
+                                                          "7" = "30",
+                                                          "25" = "31",
+                                                          "14" = "32",
+                                                          "36" = "33",
+                                                          "4" = "34",
+                                                          "34" = "35",
+                                                          "9" = "36",
+                                                          "12" = "37",
+                                                          "18" = "38",
+                                                          "20" = "39",
+                                                          "21" = "40"))
+
+kmeans.heatmap.mat$cluster <- factor(kmeans.heatmap.mat$cluster, levels = 1:40)
+
+
+pdf(paste0(outputFolder,"Heatmap_no_z_score_log2_k_40_SORTED_all_genes_grouped_by_celltype.pdf"), width = 9, height = 14)
+
+ComplexHeatmap::Heatmap(na.omit(heatmap.mat),
+                        name = "log2FC",
+                        cluster_rows = F,
+                        cluster_columns = F,
+                        show_column_dend = F,
+                        show_row_dend = F,
+                        # row_km = 15,
+                        # row_km_repeats = 4,
+                        split = kmeans.heatmap.mat$cluster,
+                        height = 20,
+                        width = 10,
+                        row_labels = rep(" ", nrow(na.omit(heatmap.mat))), 
+                        column_order = order(colnames(heatmap.mat)),
+                        column_split = column_split,
+                        column_gap = unit(1,"mm"),
+                        row_gap = unit(1,"mm"),
+                        border = F,
+                        use_raster = T,
+                        col = colorRamp2(c(-1.5, 0, 1.5), c("blue","lightgrey","red")),
+                        heatmap_legend_param = list(
+                          at = c(-1, -0.5, 0, 0.5, 1),
+                          legend_height = unit(4, "cm")
+                        ))
+
+
+
+dev.off()
+
+```
 
 #6. Creating integrated objects with ortholgueLists from other databases
 ```{r}
