@@ -680,7 +680,7 @@ for (x in Summary.Celltypes$orig.ident) {
 }
 Summary.Celltypes$condition<-condition
 
-#order it with some rbinds, quick and dirty
+#order it with some rbinds
 DF.sorted <- Summary.Celltypes %>% dplyr::group_by(condition, res.0.6) %>% dplyr::summarize(Mean = mean(freq), SEM = SEM(freq))
 DF.sorted.final <- rbind(DF.sorted[1:7,], DF.sorted[15:21,])
 DF.sorted.final <- rbind(DF.sorted.final,DF.sorted[8:14,])
