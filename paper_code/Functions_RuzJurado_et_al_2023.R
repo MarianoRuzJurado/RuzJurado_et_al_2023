@@ -1007,10 +1007,10 @@ protein.matching <- function(mGene,replacement,OrthologueList_allHuman){
   require(RecordLinkage)
   require(Biostrings)
   
-  outh <- queryMany(mGene, scopes = "symbol", fields= c("entrezgene", "uniprot"),species ="human")
+  outh <- try(queryMany(mGene, scopes = "symbol", fields= c("entrezgene", "uniprot"),species ="human"),silent = T)
   outm <- try(queryMany(replacement, scopes = "symbol", fields= c("entrezgene", "uniprot"),species ="mouse"),silent = T) # use try for some genes it gives errors
   
-  if (!("try-error" %in% class(outm))) {
+  if (!("try-error" %in% class(outm)) && !("try-error" %in% class(outh))) {
     
     #set a TrEMBL prot number or swiss prot number if TREMBL not available
     uniprot.mice <- list()
@@ -1092,10 +1092,10 @@ nucleotide.matching <- function(mGene,replacement,OrthologueList_allHuman){
   require(mygene)
   require(stringr)
   require(Biostrings)
-  out <- queryMany(mGene, scopes = "symbol", fields= c("entrezgene", "uniprot"),species ="human")
+  out <- try(queryMany(mGene, scopes = "symbol", fields= c("entrezgene", "uniprot"),species ="human"),silent = T)
   outm <- try(queryMany(replacement, scopes = "symbol", fields= c("entrezgene", "uniprot"),species ="mouse"),silent = T) # use try for some genes it gives errors
   
-  if (!("try-error" %in% class(outm))) {
+  if (!("try-error" %in% class(outm)) && !("try-error" %in% class(out))) {
     #human
     linked_seq_ids <- entrez_link(dbfrom = "gene", id=out$entrezgene, db="nuccore")
     linked_transcripts <- linked_seq_ids$links$gene_nuccore_refseqrna
