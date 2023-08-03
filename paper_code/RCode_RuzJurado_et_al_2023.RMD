@@ -524,7 +524,7 @@ rm(p1,p2,p3)
 ```
 
 
-##2.3 FIG.1B / Dimplots of clustering, sample overlap(original identifier), species overlap 
+##2.3 FIG.1B / Dimplots of clustering, sample overlap(original identifier), species overlap (Figure 1B)
 ```{r}
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated"
 
@@ -608,7 +608,7 @@ rm(SeuratObject.human.combined.ref)
 rm(SeuratObject.combined)
 ```
 
-##3.1 FIG.1C / Dimplot of cell types by species
+##3.1 FIG.1C / Dimplot of cell types by species (Figure 1C)
 ```{r}
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated"
 
@@ -622,7 +622,7 @@ dev.off()
 
 #4. Bar plots of integrated Data
 
-##4.1 FIG.1D / Barplot of % cells per cell type (condition)
+##4.1 FIG.1D / Barplot of % cells per cell type (condition) (Figure 1D)
 
 ```{r fig.height=10, fig.width=15}
 # Counting celltypes in timepoints
@@ -699,7 +699,7 @@ rm(HFrEF.Control.Obj)
 ```
 
 
-##4.2 FIG.1E&F / Dotplot with marker genes, find marker with seurat
+##4.2 FIG.1E&F / Dotplot with marker genes, find marker with seurat (Figure 1E & 1F)
 
 ```{r}
 #bubble plot with marker genes, find markers with seurat
@@ -962,7 +962,7 @@ rm(SeuratObject.combined.annotated.contast_celltype,
 ```
 
 
-###5.3.2 FIG.5B / Mean +/- Sem bar graphs condition
+###5.3.2 FIG.5B / Mean +/- Sem bar graphs condition (Figure 5B)
 
 ```{r}
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/SEM_graphs"
@@ -1154,7 +1154,7 @@ rm(Human.unique,Cardio.Human.HFrEF,Cardio.Mice.HFrEF,Mice.unique)
 ```
 
 
-###5.3.3 FIG.2A / Sankey diagramm for visualizing distribution of DEGs in biological contrasts 
+###5.3.3 FIG.2A / Sankey diagramm for visualizing distribution of DEGs in biological contrasts (Figure 2A)
 
 ```{r}
 
@@ -1326,7 +1326,7 @@ p
 
 
 
-###5.3.4 FIG.2B / DEGs Barplot per cell type 
+###5.3.4 FIG.2B / DEGs Barplot per cell type (Figure 2B)
 ```{r}
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/"
 
@@ -1845,7 +1845,7 @@ dev.off()
 
 ```
 
-###5.4.6 FIG.4 / GO (Database) GSEA results in Heatmap using simplifyEnrichment for HFrEF
+###5.4.6 FIG.4 / GO (Database) GSEA results in Heatmap using simplifyEnrichment for HFrEF (Figure 4)
 ```{r}
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/GSEA_analysis"
 
@@ -1871,7 +1871,7 @@ dev.off()
 
 ```
 
-###5.4.7 FIG.5A / building Dot plot with GSEA result Cardiomyocytes
+###5.4.7 FIG.5A / building Dot plot with GSEA result Cardiomyocytes (Figure 5A)
 ```{r}
 
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/GSEA_analysis"
@@ -1979,7 +1979,7 @@ ggsave(paste0(outputFolder,"/GSEA_Terms_Dotplot_Human_Both_Mice_Cardiomyocytes.s
   
 ```
 
-#### 5.4.7.1 SUPP.FIG.6A-D / GO (Database) GSEA results in Dot plot for HFrEF Endothelial
+#### 5.4.7.1 SUPP.FIG.6A-D / GO (Database) GSEA results in Dot plot for HFrEF Endothelial (Supplement Figure 6A-D)
 ```{r}
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/GSEA_analysis"
 
@@ -2169,9 +2169,9 @@ DO.Mean.SEM.Graphs(SeuratObject = SeuratObject.combined.annotated.HFrEF.EC,
 ggsave(filename = paste0(outputFolder,"/ECs_genes_same.svg"),device = "svg", width = 14, height = 5)
 ```
 
-##5.5 SUPP.FIG.3 / Circos plot Human specific mice matched
+##5.5 SUPP.FIG.3 / Circos plot Human specific mice matched (Supplement Figure 3)
 
-###5.5.1 SUPP.FIG.3A / Circos plot contrast and cell type specific HFrEF Top 10 log2fC sorted DEGs for Human with mouse log2FC
+###5.5.1 SUPP.FIG.3A / Circos plot contrast and cell type specific HFrEF Top 10 log2fC sorted DEGs for Human with mouse log2FC (Supplement Figure 3A)
 
 ```{r}
 
@@ -2414,7 +2414,7 @@ rm(Mice.celltype.specific.DF,Mice.only.DEGs.DF)
 rm(Human_Markers.catch, Human.only.DEG.list)
 ```
 
-###5.5.2 SUPP.FIG.3B / Circos plot contrast and cell type specific HFrEF Top 10 log2fC sorted DEGs for Mice with mouse log2FC
+###5.5.2 SUPP.FIG.3B / Circos plot contrast and cell type specific HFrEF Top 10 log2fC sorted DEGs for Mice with mouse log2FC (Supplement Figure 3B)
  
 
 ```{r}
@@ -2659,7 +2659,7 @@ rm(Human_Markers.catch, Human.only.DEG.list)
 ```
 
 
-##5.7 FIG.3A&B Log2FC Heatmap  
+##5.7 FIG.3A&B Log2FC Heatmap  (Figure 3A & B)
 ```{r}
 
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/Expression_Heatmaps/"
@@ -2833,7 +2833,7 @@ dev.off()
 
 ```
 
-#6. SUPP.FIG.2 / Creating integrated objects with ortholgueLists from other databases
+#6. SUPP.FIG.2 / Creating integrated objects with ortholgueLists from other databases (Supplement Figure 2)
 ```{r}
 #biomart just 1:1 assignments using GTF files
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Comparison_other_orthologue_objects/just_biomart"
@@ -3019,7 +3019,7 @@ Seurat_OMA <- FindClusters(Seurat_OMA, resolution = 0.3)
 
 ```
 
-##6.1 SUPP.FIG.4 / Clustering Silhouette Co-Efficient
+##6.1 SUPP.FIG.4 / Clustering Silhouette Co-Efficient (Supplement Figure 4)
 
 ```{r}
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Comparison_other_orthologue_objects/just_biomart"
@@ -3219,7 +3219,7 @@ ggsave(filename = "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_M
 
 ```
 
-#7. SUPP.FIG.5A&B / Build UpSet plot with DEG list
+#7. SUPP.FIG.5A&B / Build UpSet plot with DEG list (Supplement Figure 5A & B)
 
 ```{r}
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/venn_plot_sankey_plot/Venns_DEGs/"
