@@ -22,7 +22,7 @@ library(ggplot2)
 library(ggpubr)
 library(xlsx)
 library(OrthoIntegrate)
-source("Functions_BriefinBio_RuzJurado_et_al_2023.R")
+source("Functions_RuzJurado_et_al_2023.R")
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated"
 sink(file = paste0(outputFolder,"/Clean_Mariano_Human_Mice_Comparison.log"), append = TRUE, split = TRUE)
 ```
