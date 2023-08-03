@@ -3290,3 +3290,137 @@ ggplot(sil.DF.m, aes(x=variable, y= value, color = variable))+
 ggsave(filename = "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Comparison_other_orthologue_objects/boxplot_silhouette.svg", width = 10,height = 7)
 
 ```
+###6.2.0 Build UpSet plot with DEG list
+
+```{r}
+outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/venn_plot_sankey_plot/Venns_DEGs/"
+
+library(dplyr)
+
+#build data frame with log2FC for every gene sorted by cell type HFrEF
+DF.list.HFrEF <- Differential.expression.feature.list.contrast_celltypes[grep(pattern = "HFrEF" ,names(Differential.expression.feature.list.contrast_celltypes))]
+
+
+#add cell type info
+for (cell_type in names(DF.list.HFrEF)) {
+  DF.list.HFrEF[[cell_type]]$Markers[["gene"]] <- rownames(DF.list.HFrEF[[cell_type]]$Markers)
+  # DF.list.HFrEF[[cell_type]]$Markers[["cell_type"]] <- unlist(strsplit(cell_type, split = "_"))[2]
+  cond <- ifelse(unlist(strsplit(cell_type, split = "_"))[3] == "HFrEF", "Human-HFrEF", "Mice-HFrEF")
+  DF.list.HFrEF[[cell_type]]$Markers[["condition"]] <- cond
+  DF.list.HFrEF[[cell_type]]$Markers[["cell_type"]] <- ifelse("Human-HFrEF" %in% cond, paste0("H_",unlist(strsplit(cell_type, split = "_"))[2]), paste0("M_",unlist(strsplit(cell_type, split = "_"))[2]))
+  rownames(DF.list.HFrEF[[cell_type]]$Markers) <- NULL
+  
+}
+
+collected.list.rownames.Human <- list(Cardiomyocytes = DF.list.HFrEF$Human_Cardiomyocytes_HFrEF$Markers$gene,
+                                Endothelial = DF.list.HFrEF$Human_Endothelial_HFrEF$Markers$gene,
+                                Fibroblasts = DF.list.HFrEF$Human_Fibroblasts_HFrEF$Markers$gene,
+                                Immune.cells = DF.list.HFrEF$Human_Immune.cells_HFrEF$Markers$gene,
+                                Perictyes = DF.list.HFrEF$Human_Pericytes_HFrEF$Markers$gene,
+                                Smooth.Muscle = DF.list.HFrEF$Human_Smooth.Muscle_HFrEF$Markers$gene)
+library(ComplexHeatmap)
+m1 = make_comb_mat(collected.list.rownames.Human)
+set_name(m1) <- c("Cardiomyocytes","Endothelial","Fibroblasts","Immune cells","Perictyes","Smooth Muscle")
+
+ss = set_size(m1)
+cs = comb_size(m1)
+
+pdf(paste0(outputFolder,"UpSet_plot_Human_DEGs.pdf"), width = 15, height = 6)
+ht = UpSet(m1,
+      set_order = order(ss, decreasing = T),
+      comb_order = order(comb_size(m1), decreasing = T),
+      # pt_size = unit(3, "mm"), lwd = 2,bg_col = c("#F0F0FF", "#FFF0F0"), bg_pt_col = "#CCCCFF",
+      top_annotation = HeatmapAnnotation("Genes Intersection" = anno_barplot(cs,
+                                              ylim = c(0, max(cs)*1.1),
+                                              border = F, 
+                                              gp = gpar(fill = "black"), 
+                                              height = unit(4, "cm")
+                                          ), 
+                                          annotation_name_side = "left", 
+                                          annotation_name_rot = 90),
+                                    left_annotation = rowAnnotation(
+                                      "Gene set size" = anno_barplot(-ss, 
+                                          baseline = 0,
+                                          axis_param = list(
+                                              at = c(0, -1000, -2000, -3000, -4000),
+                                              labels = c(0, 1000, 2000, 3000, 4000),
+                                              labels_rot = 0),
+                                          border = F, 
+                                          gp = gpar(fill = "black"), 
+                                          width = unit(4, "cm"),
+                                      ),
+                                      set_name = anno_text(set_name(m1), 
+                                          location = 0.5, 
+                                          just = "center",
+                                          width = max_text_width(set_name(m1)) + unit(4, "mm"))
+                                  ), 
+                                  right_annotation = NULL,
+                                  show_row_names = FALSE)
+
+ht = draw(ht)
+od = column_order(ht)
+decorate_annotation("Genes Intersection", {
+    grid.text(cs[od], x = seq_along(cs), y = unit(cs[od], "native") + unit(2, "pt"), 
+        default.units = "native", just = c("left", "bottom"), 
+        gp = gpar(fontsize = 8, col = "#404040"), rot = 45)
+})
+
+dev.off()
+
+collected.list.rownames.Mice <- list(Cardiomyocytes = DF.list.HFrEF$`Mice_Cardiomyocytes_Mice-HFrEF`$Markers$gene,
+                                Endothelial = DF.list.HFrEF$`Mice_Endothelial_Mice-HFrEF`$Markers$gene,
+                                Fibroblasts = DF.list.HFrEF$`Mice_Fibroblasts_Mice-HFrEF`$Markers$gene,
+                                Immune.cells = DF.list.HFrEF$`Mice_Immune.cells_Mice-HFrEF`$Markers$gene,
+                                Perictyes = DF.list.HFrEF$`Mice_Pericytes_Mice-HFrEF`$Markers$gene,
+                                Smooth.Muscle = DF.list.HFrEF$`Mice_Smooth.Muscle_Mice-HFrEF`$Markers$gene)
+library(ComplexHeatmap)
+m1 = make_comb_mat(collected.list.rownames.Mice)
+set_name(m1) <- c("Cardiomyocytes","Endothelial","Fibroblasts","Immune cells","Perictyes","Smooth Muscle")
+
+ss = set_size(m1)
+cs = comb_size(m1)
+
+pdf(paste0(outputFolder,"UpSet_plot_Mice_DEGs.pdf"), width = 15, height = 6)
+ht = UpSet(m1,
+      set_order = order(ss, decreasing = T),
+      comb_order = order(comb_size(m1), decreasing = T),
+      # pt_size = unit(3, "mm"), lwd = 2,bg_col = c("#F0F0FF", "#FFF0F0"), bg_pt_col = "#CCCCFF",
+      top_annotation = HeatmapAnnotation("Genes Intersection" = anno_barplot(cs,
+                                              ylim = c(0, max(cs)*1.1),
+                                              border = F, 
+                                              gp = gpar(fill = "black"), 
+                                              height = unit(4, "cm")
+                                          ), 
+                                          annotation_name_side = "left", 
+                                          annotation_name_rot = 90),
+                                    left_annotation = rowAnnotation(
+                                      "Gene set size" = anno_barplot(-ss, 
+                                          baseline = 0,
+                                          axis_param = list(
+                                              at = c(0, -1000, -2000, -3000, -4000),
+                                              labels = c(0, 1000, 2000, 3000, 4000),
+                                              labels_rot = 0),
+                                          border = F, 
+                                          gp = gpar(fill = "black"), 
+                                          width = unit(4, "cm"),
+                                      ),
+                                      set_name = anno_text(set_name(m1), 
+                                          location = 0.5, 
+                                          just = "center",
+                                          width = max_text_width(set_name(m1)) + unit(4, "mm"))
+                                  ), 
+                                  right_annotation = NULL,
+                                  show_row_names = FALSE)
+
+ht = draw(ht)
+od = column_order(ht)
+decorate_annotation("Genes Intersection", {
+    grid.text(cs[od], x = seq_along(cs), y = unit(cs[od], "native") + unit(2, "pt"), 
+        default.units = "native", just = c("left", "bottom"), 
+        gp = gpar(fontsize = 8, col = "#404040"), rot = 45)
+})
+
+dev.off()
+
+
+```
