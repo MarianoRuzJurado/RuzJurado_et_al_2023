@@ -1,0 +1,446 @@
+---
+title: "Zebrafish analysis"
+output: html_document
+date: "2023-11-16"
+editor_options: 
+  chunk_output_type: console
+---
+
+#1. Read in SeuratObjects, adjust objects
+```{r}
+outputfolder <- "/media/Helios_scStorage/Mariano/Revision_scib/zebrafish_analysis"
+
+library(Seurat)
+library(openxlsx)
+library(tidyverse)
+library(ggpubr)
+source("/media/EOS_ZMM_shared/Bioinformatic/scRNA-SEQ-ZMM/Import10X-HelperFunctions_SeuratV3.R")
+source("/media/EOS_ZMM_shared/Bioinformatic/scRNA-SEQ-ZMM/Mariano_functions.R")
+
+#human objects
+Seuratobjectlist.human <- list()
+Seuratobjectlist.human[[1]] <- readRDS("/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Datasets_alzheimer/human/seuratObjects/AD01101.rds")
+Seuratobjectlist.human[[2]] <- readRDS("/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Datasets_alzheimer/human/seuratObjects/AD01102.rds")
+Seuratobjectlist.human[[3]] <- readRDS("/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Datasets_alzheimer/human/seuratObjects/AD01103.rds")
+Seuratobjectlist.human[[4]] <- readRDS("/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Datasets_alzheimer/human/seuratObjects/AD01104.rds")
+
+#mice objects
+Seuratobjectlist.mice <- list()
+Seuratobjectlist.mice[[1]] <- readRDS("/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Datasets_alzheimer/mouse/seuratObjects/AD00601.rds")
+Seuratobjectlist.mice[[2]] <- readRDS("/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Datasets_alzheimer/mouse/seuratObjects/AD00602.rds")
+Seuratobjectlist.mice[[3]] <- readRDS("/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Datasets_alzheimer/mouse/seuratObjects/AD00603.rds")
+Seuratobjectlist.mice[[4]] <- readRDS("/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Datasets_alzheimer/mouse/seuratObjects/AD00604.rds")
+
+#zebrafish
+Sample.paths.zebrafish <- c("/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Datasets_alzheimer/zebrafish/10X_Data_AutomatedCellsCounts/AB42_Cells",
+                            "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Datasets_alzheimer/zebrafish/10X_Data_AutomatedCellsCounts/IL4_Cells",
+                            "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Datasets_alzheimer/zebrafish/10X_Data_AutomatedCellsCounts/PBS_Cells")
+
+Samplenames.zebrafish <- c("Zebrafish-AD-n1", "Zebrafish-AD-n2", "Zebrafish-CTRL-n1")
+
+
+SeuratObjectList.zebrafish <- list()
+for (i in 1:length(Sample.paths.zebrafish)) {
+  tmpList<-Importer(pathway = Sample.paths.zebrafish[i],id = Samplenames.zebrafish[i], FilterCells = TRUE, FilterByAbsoluteValues = TRUE, performScaling = TRUE, minFeatures=300, maxFeatures=6000,minCounts=500,maxCounts=15000, maxMito=0.05)
+  print(tmpList[[2]])
+  SeuratObjectList.zebrafish[[i]]<-tmpList[[1]]
+}
+
+rm(tmpList)
+```
+
+##1.2 Add disease and species information to the objects before integrating 
+```{r}
+#add species to human objects
+for (i in 1:length(Seuratobjectlist.human)) {
+  Seuratobjectlist.human[[i]]$species <- "Human"
+}
+#ADD disease
+Seuratobjectlist.human[[1]]$disease<-"Healthy"
+Seuratobjectlist.human[[2]]$disease<-"Healthy"
+Seuratobjectlist.human[[3]]$disease<-"Alzheimer"
+Seuratobjectlist.human[[4]]$disease<-"Alzheimer"
+#Add Condition
+Seuratobjectlist.human[[1]]$condition<-"Human-Healthy-AD01101"
+Seuratobjectlist.human[[2]]$condition<-"Human-Healthy-AD01102"
+Seuratobjectlist.human[[3]]$condition<-"Human-Alzheimer-AD01103"
+Seuratobjectlist.human[[4]]$condition<-"Human-Alzheimer-AD01104"
+
+#add species to mice objects
+for (i in 1:length(Seuratobjectlist.mice)) {
+  Seuratobjectlist.mice[[i]]$species <- "Mice"  
+}
+
+Seuratobjectlist.mice[[1]]$disease<-"Healthy"
+Seuratobjectlist.mice[[2]]$disease<-"Healthy"
+Seuratobjectlist.mice[[3]]$disease<-"Alzheimer"
+Seuratobjectlist.mice[[4]]$disease<-"Alzheimer"
+#Add Condition
+Seuratobjectlist.mice[[1]]$condition<-"Mice-Healthy-AD00601"
+Seuratobjectlist.mice[[2]]$condition<-"Mice-Healthy-AD00602"
+Seuratobjectlist.mice[[3]]$condition<-"Mice-Alzheimer-AD00603"
+Seuratobjectlist.mice[[4]]$condition<-"Mice-Alzheimer-AD00604"
+
+#add species to mice objects
+for (i in 1:length(SeuratObjectList.zebrafish)) {
+  SeuratObjectList.zebrafish[[i]]$species <- "Zebrafish"  
+}
+
+SeuratObjectList.zebrafish[[1]]$disease<-"Alzheimer"
+SeuratObjectList.zebrafish[[2]]$disease<-"Alzheimer"
+SeuratObjectList.zebrafish[[3]]$disease<-"Healthy"
+#Add Condition
+SeuratObjectList.zebrafish[[1]]$condition<-"Zebrafish-Alzheimer-AB42_Cells"
+SeuratObjectList.zebrafish[[2]]$condition<-"Zebrafish-Alzheimer-IL4_Cells"
+SeuratObjectList.zebrafish[[3]]$condition<-"Zebrafish-Healthy-PBS_Cells"
+```
+
+## 1.3 Apply thresholds from Human ATLAS on data, refind Variable features per Object
+```{r}
+#human
+for (i in 1:length(Seuratobjectlist.human)) {
+  Object <- Seuratobjectlist.human[[i]]
+  Object <- subset(Object, subset =       nFeature_RNA > 300 & nFeature_RNA < 6000 &
+                                          nCount_RNA > 500 & nCount_RNA <15000)
+  Object <- FindVariableFeatures(object = Object, selection.method = "vst", nfeatures = 2000, verbose = FALSE)
+  Seuratobjectlist.human[[i]] <- Object
+}
+
+#mice
+for (i in 1:length(Seuratobjectlist.mice)) {
+  Object <- Seuratobjectlist.mice[[i]]
+  Object <- subset(Object, subset =       nFeature_RNA > 300 & nFeature_RNA < 6000 &
+                                          nCount_RNA > 500 & nCount_RNA <15000)
+  Object <- FindVariableFeatures(object = Object, selection.method = "vst", nfeatures = 2000, verbose = FALSE)
+  Seuratobjectlist.mice[[i]] <- Object
+}
+
+#zebrafish
+for (i in 1:length(SeuratObjectList.zebrafish)) {
+  Object <- SeuratObjectList.zebrafish[[i]]
+  Object <- subset(Object, subset =       nFeature_RNA > 300 & nFeature_RNA < 6000 &
+                                          nCount_RNA > 500 & nCount_RNA <15000)
+  SeuratObjectList.zebrafish[[i]] <- Object
+}
+```
+
+##1.4 Read in Orthologue Dataframes for the 3 species, find overlaps
+```{r}
+GTF.human <- "/opt/refdata-gex-GRCh38-2020-A/genes/genes.gtf"
+GTF.mice <- "/opt/refdata-gex-mm10-2020-A/genes/genes.gtf"
+GTF.zebrafish <- "/media/Storage/R/Revision_scib/Danio_rerio.GRCz11.110.gtf"
+
+OrthologueList_Human_Mouse <- BuildOrthologues(GTF.1 = GTF.human, GTF.2 = GTF.mice, species.1 = "human", species.2 = "mouse")
+OrthologueList_Human_Zebrafish <- BuildOrthologues(GTF.1 = GTF.human, GTF.2 = GTF.zebrafish, species.1 = "human", species.2 = "zebrafish")
+
+#read in after running
+OrthologueList_Human_Mouse <- read.xlsx("/media/Helios_scStorage/Mariano/forDavid/OrthologueList.xlsx")
+OrthologueList_Human_Zebrafish <- read.xlsx("/media/Helios_scStorage/Mariano/forDavid/OrthologueList_human_zebrafish.xlsx")
+
+Overlap.genes <- OrthologueList_Human_Mouse$HGNC.symbol[OrthologueList_Human_Mouse$HGNC.symbol %in% OrthologueList_Human_Zebrafish$human]
+
+OrthologueList_combined <- OrthologueList_Human_Mouse[OrthologueList_Human_Mouse$HGNC.symbol %in% Overlap.genes,]
+colnames(OrthologueList_combined) <- c("human", "mouse")
+OrthologueList_combined_zebrafish <- OrthologueList_Human_Zebrafish[OrthologueList_Human_Zebrafish$human %in% Overlap.genes,]
+
+```
+
+##1.5 Subset every object by the Orthologues between all 3 species
+```{r}
+source("/media/Storage/R/Revision_scib/OrthoIntegrate/R/SubsetObjects.R")
+
+#Combine Human and moue
+SeuratObject.list.human_mouse <- list()
+SeuratObject <- IntegrateObjects(OrthologueList = OrthologueList_combined,
+                 SeuratObjectList.species.1 = Seuratobjectlist.human,
+                 SeuratObjectList.species.2 = Seuratobjectlist.mice,
+                 species.1 = "human",
+                 species.2 = "mouse")
+SeuratObject.list.human_mouse[[1]] <- SeuratObject
+
+#Save Object
+saveRDS(SeuratObject, file=paste0(outputfolder, "/SeuratObject_human_mouse_integrated.rds"))
+
+#Combine Human and mouse with zebrafish
+SeuratObject_human_mouse_zebrafish <- IntegrateObjects(OrthologueList = OrthologueList_combined_zebrafish,
+                 SeuratObjectList.species.1 = SeuratObject.list.human_mouse,
+                 SeuratObjectList.species.2 = SeuratObjectList.zebrafish,
+                 species.1 = "human",
+                 species.2 ="zebrafish")
+
+#Save Object
+saveRDS(SeuratObject, file=paste0(outputfolder, "/SeuratObject_human_mouse_zebrafish_integrated.rds"))
+
+```
+
+#1.6 Add information in metadata
+```{r}
+#SeuratObject_human_mouse_zebrafish$species <- ifelse(is.na(SeuratObject_human_mouse_zebrafish$species), "mouse", SeuratObject_human_mouse_zebrafish$species)
+
+#SeuratObject_human_mouse_zebrafish$group <- ifelse(is.na(SeuratObject_human_mouse_zebrafish$group), "healthy", SeuratObject_human_mouse_zebrafish$group)
+
+```
+
+#1.7 Preprocess SeuratObject
+
+```{r}
+DefaultAssay(object = SeuratObject_human_mouse_zebrafish) <- "integrated"
+
+# Run the standard workflow for visualization and clustering
+SeuratObject_human_mouse_zebrafish <- ScaleData(object = SeuratObject_human_mouse_zebrafish, verbose = FALSE)
+SeuratObject_human_mouse_zebrafish <- RunPCA(object = SeuratObject_human_mouse_zebrafish, npcs = 30, verbose = FALSE)
+# UMAP and Clustering
+SeuratObject_human_mouse_zebrafish <- RunUMAP(object = SeuratObject_human_mouse_zebrafish, reduction = "pca", dims = 1:10)
+SeuratObject_human_mouse_zebrafish <- FindNeighbors(object = SeuratObject_human_mouse_zebrafish, reduction = "pca", dims = 1:10)
+SeuratObject_human_mouse_zebrafish <- FindClusters(SeuratObject_human_mouse_zebrafish, resolution = 0.3)
+
+### only human mouse object
+SeuratObject <- ScaleData(object = SeuratObject, verbose = FALSE)
+SeuratObject <- RunPCA(object = SeuratObject, npcs = 30, verbose = FALSE)
+SeuratObject <- RunUMAP(object = SeuratObject, reduction = "pca", dims = 1:10)
+SeuratObject <- FindNeighbors(object = SeuratObject, reduction = "pca", dims = 1:10)
+SeuratObject <- FindClusters(SeuratObject, resolution = 0.3)
+
+Idents(SeuratObject) <- "seurat_clusters"
+DimPlot(SeuratObject, repel = T, reduction = "umap", label = T, label.size = 8)
+UMAP.plot <- DimPlot(SeuratObject, reduction = "umap", group.by = "species", pt.size = .01, label = F, raster = F, cols = c("#F8766D","#00c0c5", "#008000"))
+#set alpha values for better visuals
+UMAP.plot[[1]]$layers[[1]]$aes_params$alpha = ifelse (SeuratObject@meta.data$species %in% c("mouse", "zebrafish"), 1, .50 )
+UMAP.plot
+DimPlot(SeuratObject, reduction = "umap", group.by = "marker_cell_type", pt.size = .01, label = F, raster = F)
+```
+
+```{r}
+Idents(SeuratObject_human_mouse_zebrafish) <- "seurat_clusters"
+DimPlot(SeuratObject_human_mouse_zebrafish, repel = T, reduction = "umap", label = T, label.size = 8)
+ggsave(filename = paste0(outputfolder,"/Dimplot_SeuratObject_human_mouse_zebrafish.png"), device = "png", width = 9, height = 7)
+UMAP.plot <- DimPlot(SeuratObject_human_mouse_zebrafish, reduction = "umap", group.by = "species", pt.size = .01, label = F, raster = F, cols = c("#F8766D","#00c0c5", "#008000"))
+#set alpha values for better visuals
+UMAP.plot[[1]]$layers[[1]]$aes_params$alpha = ifelse (SeuratObject_human_mouse_zebrafish@meta.data$species %in% c("mouse", "zebrafish"), 1, .30 )
+UMAP.plot
+ggsave(filename = paste0(outputfolder,"/Dimplot_SeuratObject_human_mouse_zebrafish_by_species.png"), device = "png", width = 9, height = 7)
+
+
+```
+
+#1.8 Find CLuster MArkers
+
+```{r}
+# Find all deregulated genes/markers in every cluster compared to each other for human
+Idents(SeuratObject_human_mouse_zebrafish) <- "seurat_clusters"
+SeuratObject_human_mouse_zebrafish.all.Markers.in.Cluster <- FindAllMarkers(object = SeuratObject_human_mouse_zebrafish, min.pct = 0.1, logfc.threshold = 0.1, only.pos = T)
+
+write.xlsx(SeuratObject_human_mouse_zebrafish.all.Markers.in.Cluster,file=paste0(outputfolder,"/SeuratObject_human_mouse_zebrafish.all.Markers.in.Cluster.xlsx"), col.names = T)
+top20<-SeuratObject_human_mouse_zebrafish.all.Markers.in.Cluster %>% dplyr::group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC)
+#kick MT-genes
+MT.genes <- top20[grep(pattern = "MT-", top20$gene),]
+tp20 <- top20[!(top20$gene %in% MT.genes$gene),]
+
+Idents(SeuratObject_human_mouse_zebrafish)<-"seurat_clusters"
+DotPlot(SeuratObject_human_mouse_zebrafish, features = unique(tp20$gene)) + theme(axis.text.x = element_text(angle = 90, size = 13, vjust = .5, hjust = .9))
+ggsave(filename = paste0(outputfolder,"/SeuratObject_human_mouse_zebrafish_Markers_for_seurat_clusters_Top_10.png"), width = 16, height = 5)
+
+#clean up
+rm(MT.genes,top20,tp20)
+rm(SeuratObject.combined.all.Markers.in.Cluster)
+
+
+```
+
+#1.9 Re-annotate object
+
+```{r}
+
+astro_markers <- c("SLC1A3","SLC1A2","NDRG2","S100B","CXCL14")
+oligodendrocyte_markers <- c("PTGDS","MBP","SCD","GPRC5B")
+neuron_markers <- c("PVALB","GAD1","TAC1","CPLX1","CALB2","NR2F2")
+
+DefaultAssay(SeuratObject_human_mouse_zebrafish) <-"RNA"
+FeaturePlot(SeuratObject_human_mouse_zebrafish, astro_markers, label = T)
+FeaturePlot(SeuratObject_human_mouse_zebrafish, oligodendrocyte_markers, label = T)
+FeaturePlot(SeuratObject_human_mouse_zebrafish, neuron_markers, label = T)
+
+#Cluster 5,8,4 -> Neurons
+#Cluster 6 -> Astrocytes
+
+
+SeuratObject_human_mouse_zebrafish$cell_type <- plyr::revalue(SeuratObject_human_mouse_zebrafish$seurat_clusters,
+                                                              c("0"="Exc_Neurons",
+                                                                "1"="Exc_Neurons",
+                                                                "2"="Exc_Neurons",
+                                                                "3"="Exc_Neurons",
+                                                                "7"="Exc_Neurons",
+                                                                "4"="Inh_Nerons",
+                                                                "5"="Inh_Nerons",
+                                                                "8"="Inh_Nerons",
+                                                                "6"="Astrocytes"))
+
+DimPlot(SeuratObject_human_mouse_zebrafish, label = T, group.by = "cell_type")
+ggsave(filename = paste0(outputfolder,"/Dimplot_SeuratObject_human_mouse_zebrafish_by_celltype.png"), device = "png", width = 9, height = 7)
+
+saveRDS(SeuratObject_human_mouse_zebrafish, file = paste0(outputfolder, "/SeuratObject_human_mouse_zebrafish_annotated.rds"))
+
+```
+
+```{r}
+
+features <- c("NRGN", "GPC5","SLC17A7","GRID2","CPE","NPTN","KCND2","CHN1","ENC1","CAM2",
+              "SNCB","SNRNP48","SLC6A1","CXCL14","GAD1","ATP6V0C","SNAP25","DNER","PDGFB","SCG2",
+              "ATB1B4","PLP1","SLC1A2","SLC1A2","NDGR2","CXCL14","APOE","CLU","PTN","HES5")
+
+tmp <- intersect(Obj.Markers.in.cell_type.human$gene, intersect(Obj.Markers.in.cell_type.mice$gene, Obj.Markers.in.cell_type.zebrafish$gene))
+
+#bubble plot with marker genes, find markers with seurat
+Idents(SeuratObject_human_mouse_zebrafish) <- "species"
+species = "Human"
+SeuratObject_human_mouse_zebrafish.species <- subset(SeuratObject_human_mouse_zebrafish, idents = species)
+Idents(SeuratObject_human_mouse_zebrafish.species) <-"cell_type"
+
+species2 = "Mice"
+SeuratObject_human_mouse_zebrafish.species2 <- subset(SeuratObject_human_mouse_zebrafish, idents = species2)
+Idents(SeuratObject_human_mouse_zebrafish.species2) <-"cell_type"
+
+species3 = "Zebrafish"
+SeuratObject_human_mouse_zebrafish.species3 <- subset(SeuratObject_human_mouse_zebrafish, idents = species3)
+Idents(SeuratObject_human_mouse_zebrafish.species3) <-"cell_type"
+
+Obj.Markers.in.cell_type <-  FindAllMarkers(SeuratObject_human_mouse_zebrafish, min.pct = 0.25, logfc.threshold = 0.25, only.pos = T)
+
+Obj.Markers.in.cell_type.human <- FindAllMarkers(object = SeuratObject_human_mouse_zebrafish.species, min.pct = 0.1, logfc.threshold = 0.1, only.pos = T)
+Obj.Markers.in.cell_type.mice <- FindAllMarkers(object = SeuratObject_human_mouse_zebrafish.species2, min.pct = 0, logfc.threshold = 0, only.pos = T)
+Obj.Markers.in.cell_type.zebrafish <- FindAllMarkers(object = SeuratObject_human_mouse_zebrafish.species3, min.pct = 0, logfc.threshold = 0, only.pos = T)
+
+write.xlsx(Obj.Markers.in.cell_type.human,file=paste0(outputfolder,"/dotplots_per_celltype/Human_Markers_for_cell_types.xlsx"), col.names = T)
+write.xlsx(Obj.Markers.in.cell_type.mice,file=paste0(outputfolder,"/dotplots_per_celltype/Mice_Markers_for_cell_types.xlsx"), col.names = T)
+write.xlsx(Obj.Markers.in.cell_type.zebrafish,file=paste0(outputfolder,"/dotplots_per_celltype/Zebrafish_Markers_for_cell_types.xlsx"), col.names = T)
+
+top20.h<-Obj.Markers.in.cell_type.human[Obj.Markers.in.cell_type.human$gene %in% tmp,]
+top20.h.s <- top20.h %>% dplyr::group_by(cluster) %>% top_n(n = 15, wt = avg_log2FC)
+#top20<-Obj.Markers.in.cell_type.human %>% dplyr::group_by(cluster) %>% top_n(n = 5, wt = avg_log2FC)
+#kick MT-genes
+MT.genes <- top20.h.s[grep(pattern = "MT-", top20.h.s$gene),]
+tp20.h <- top20.h.s[!(top20.h.s$gene %in% MT.genes$gene),]
+
+Idents(SeuratObject_human_mouse_zebrafish.species)<-"cell_type"
+SeuratObject_human_mouse_zebrafish.species@active.ident <- factor(SeuratObject_human_mouse_zebrafish.species@active.ident, levels = c("Astrocytes", "Inh_Nerons", "Exc_Neurons"))
+
+DotPlot(SeuratObject_human_mouse_zebrafish.species, features = unique(rev(tp20.h$gene)))+ 
+  theme(axis.text.x = element_text(angle = 90, size = 14, vjust = .5, hjust = .9),
+        axis.text.y = element_text(size = 18),
+        axis.title = element_text(size = 18),
+        legend.text = element_text(size = 18))+
+  guides(size = guide_legend(order = 1))
+ggsave(filename = paste0(outputfolder,"/dotplots_per_celltype/Human_Markers_for_cell_types.svg"), width = 12, height = 5)
+
+top20.m<-Obj.Markers.in.cell_type.mice[Obj.Markers.in.cell_type.mice$gene %in% tmp,]
+top20.m.s <- top20.m %>% dplyr::group_by(cluster) %>% top_n(n = 15, wt = avg_log2FC)
+
+#top20<-Obj.Markers.in.cell_type.mice %>% dplyr::group_by(cluster) %>% top_n(n = 5, wt = avg_log2FC)
+#kick MT-genes
+MT.genes <- top20.m.s[grep(pattern = "MT-", top20.m.s$gene),]
+tp20 <- top20.m.s[!(top20.m.s$gene %in% MT.genes$gene),]
+
+Idents(SeuratObject_human_mouse_zebrafish.species2)<-"cell_type"
+SeuratObject_human_mouse_zebrafish.species2@active.ident <- factor(SeuratObject_human_mouse_zebrafish.species2@active.ident, levels = c("Astrocytes", "Inh_Nerons", "Exc_Neurons"))
+
+DotPlot(SeuratObject_human_mouse_zebrafish.species2, features = unique(rev(tp20.h$gene))) + 
+  theme(axis.text.x = element_text(angle = 90, size = 14, vjust = .5, hjust = .9),
+        axis.text.y = element_text(size = 18),
+        axis.title = element_text(size = 18),
+        legend.text = element_text(size = 18))+
+  guides(size = guide_legend(order = 1))
+ggsave(filename = paste0(outputfolder,"/dotplots_per_celltype/Mice_Markers_for_cell_types.svg"), width = 12, height = 5)
+
+top20.z<-Obj.Markers.in.cell_type.zebrafish[Obj.Markers.in.cell_type.zebrafish$gene %in% tmp,]
+top20.z.s <- top20.z %>% dplyr::group_by(cluster) %>% top_n(n = 15, wt = avg_log2FC)
+#top20<-Obj.Markers.in.cell_type.zebrafish %>% dplyr::group_by(cluster) %>% top_n(n = 5, wt = avg_log2FC)
+#kick MT-genes
+MT.genes <- top20.z.s[grep(pattern = "MT-", top20.z.s$gene),]
+tp20 <- top20.z.s[!(top20.z.s$gene %in% MT.genes$gene),]
+
+Idents(SeuratObject_human_mouse_zebrafish.species3)<-"cell_type"
+SeuratObject_human_mouse_zebrafish.species3@active.ident <- factor(SeuratObject_human_mouse_zebrafish.species3@active.ident, levels = c("Astrocytes", "Inh_Nerons", "Exc_Neurons"))
+DotPlot(SeuratObject_human_mouse_zebrafish.species3, features = unique(rev(tp20.h$gene))) + 
+  theme(axis.text.x = element_text(angle = 90, size = 14, vjust = .5, hjust = .9),
+        axis.text.y = element_text(size = 18),
+        axis.title = element_text(size = 18),
+        legend.text = element_text(size = 18))+
+  guides(size = guide_legend(order = 1))
+ggsave(filename = paste0(outputfolder,"/dotplots_per_celltype/Zebrafish_Markers_for_cell_types.svg"), width = 12, height = 5)
+```
+
+#2.0 Barplot % celltype
+```{r}
+## Barplot of % cells per cell type (condition)
+
+# Counting celltypes in timepoints
+library(ggplot2)
+library(scales)
+library(stringr)
+V<- SeuratObject_human_mouse_zebrafish@meta.data
+condition.ordered<-str_sort(unique(SeuratObject_human_mouse_zebrafish@meta.data$condition),numeric = TRUE)
+V$condition<-factor(V$condition,levels = condition.ordered)
+V$res.0.6<-factor(V$cell_type)
+
+
+Summary.Celltypes <- V %>% dplyr::count(condition,res.0.6) %>% dplyr::group_by(condition) %>% 
+  dplyr::mutate(freq = n /sum(n)) %>% complete(res.0.6,fill = list(n=0,freq=0))
+
+##SEMs
+SEM <- function(x) sqrt(var(x)/length(x))
+
+
+
+Summary.Celltypes$res.0.6 <- factor(Summary.Celltypes$res.0.6)
+disease<-c()
+for (x in Summary.Celltypes$condition) {
+  tmp<-unlist(strsplit(x,split = "-"))
+  cx<-paste0(tmp[1:length(tmp)-1],collapse = "-")
+  
+  disease<-c(disease,cx)
+  
+}
+Summary.Celltypes$disease<-disease
+
+#order it with some rbinds, quick and dirty
+DF.sorted <- Summary.Celltypes %>% dplyr::group_by(disease, res.0.6) %>% dplyr::summarize(Mean = mean(freq), SEM = SEM(freq))
+DF.sorted.final <- rbind(DF.sorted[4:6,], DF.sorted[1:3,])
+DF.sorted.final <- rbind(DF.sorted.final,DF.sorted[10:12,])
+DF.sorted.final <- rbind(DF.sorted.final,DF.sorted[7:9,])
+DF.sorted.final <- rbind(DF.sorted.final,DF.sorted[16:18,])
+DF.sorted.final <- rbind(DF.sorted.final,DF.sorted[13:15,])
+
+DF.sorted.orig <- Summary.Celltypes %>% dplyr::select(condition,res.0.6,freq,disease)
+DF.sorted.orig <- DF.sorted.orig %>% group_by(condition, res.0.6, disease) %>% 
+    summarise(Mean = mean(freq))
+
+
+#Factor setting for order
+DF.sorted.final$disease<-factor(DF.sorted.final$disease, levels = c("Human-Healthy","Human-Alzheimer","Mice-Healthy","Mice-Alzheimer","Zebrafish-Healthy", "Zebrafish-Alzheimer"))
+
+ListTest <- list()
+ListTest[[1]] <- c("Human-Healthy", "Human-Alzheimer")
+ListTest[[2]] <- c("Mice-Healthy", "Mice-Alzheimer")
+ListTest[[3]] <- c("Zebrafish-Healthy", "Zebrafish-Alzheimer")
+
+ggplot(DF.sorted.final, aes(x=disease, y= Mean, fill=disease))+
+  geom_col(width = 0.9, color = "black")+
+  facet_wrap(~res.0.6, nrow = 1, scales = "free")+
+  scale_y_continuous(name = "Percent per Cell type", labels = scales::percent_format())+
+  scale_fill_manual("organism",values =c("Human-Healthy"="#F86B62","Human-Alzheimer"="#F86B62","Mice-Healthy"="#08B2B7",                
+                                         "Mice-Alzheimer"="#08B2B7","Zebrafish-Healthy"="#008000","Zebrafish-Alzheimer"="#008000"))+
+  geom_errorbar(aes(ymin=Mean-SEM, ymax=Mean+SEM), width =0.2)+
+  theme_classic()+
+  #stat_compare_means(data=DF.sorted.orig, comparisons = ListTest, method = "wilcox", size=3)+
+  theme(strip.text = element_text(size=13, face = "bold"),
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(face = "bold", color = "black",angle = 45,hjust = 1, size = 13),
+        legend.position = "none",
+        axis.title.y = element_text(face = "bold", size = 13, hjust = 0.5, vjust = 2.5),
+        axis.text.y = element_text(size = 13, face = "bold",))
+
+ggsave(filename = paste0(outputfolder,"/Human_Mice_Zabrafish_Barplot-CellsperCelltypePerCondition.png"),width = 13, height = 5.5)
+ggsave(filename = paste0(outputfolder,"/Human_Mice_Zabrafish_Barplot-CellsperCelltypePerCondition.svg"),width = 13, height = 5.5)
+dev.off()
+```
+
