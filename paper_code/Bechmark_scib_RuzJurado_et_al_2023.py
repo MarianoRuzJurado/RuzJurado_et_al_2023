@@ -78,7 +78,7 @@ output_ortho.loc['silhouette_batch', 'OrthoIntegrate'] = silhouetteBatch_ortho[0
 output_ortho.loc['kBET', 'OrthoIntegrate'] = kBET_ortho
 output_ortho.loc['LISI', 'OrthoIntegrate'] = LISI_score_ortho
 output_ortho.loc['Cell cycle conservation', 'OrthoIntegrate'] = cell_cycle_ortho
-output_ortho.loc['Species-type LISI', 'OrthoIntegrate'] = clisi_graph_ortho
+output_ortho.loc['Cell-type LISI', 'OrthoIntegrate'] = clisi_graph_ortho
 output_ortho.loc['isolated_labels_f1', 'OrthoIntegrate'] = isolated_labels_f1_ortho
 output_ortho.loc['Species mixing score', 'OrthoIntegrate'] = (graph_connectivity_ortho + pcr_comparison_ortho + silhouetteBatch_ortho[0] + kBET_ortho + LISI_score_ortho)/5 # Species Score
 output_ortho.T.to_csv('/media/Storage/R/Integrated/metrics_OrthoIntegrate_cell_type.csv')
@@ -131,7 +131,7 @@ output_para.loc['silhouette_batch', 'inParanoid'] = silhouetteBatch_para[0]
 output_para.loc['kBET', 'inParanoid'] = kBET_para
 output_para.loc['LISI', 'inParanoid'] = LISI_score_para
 output_para.loc['Cell cycle conservation', 'inParanoid'] = cell_cycle_para
-output_para.loc['Species-type LISI', 'inParanoid'] = clisi_graph_para
+output_para.loc['Cell-type LISI', 'inParanoid'] = clisi_graph_para
 output_para.loc['isolated_labels_f1', 'inParanoid'] = isolated_labels_f1_para
 output_para.loc['Species mixing score', 'inParanoid'] = (graph_connectivity_para + pcr_comparison_para + silhouetteBatch_para[0] + kBET_para + LISI_score_para)/5 # Species Score
 output_para.T.to_csv('/media/Storage/R/Inparanoid/metrics_Inparanoid_cell_type.csv')
@@ -185,7 +185,7 @@ output_biomart.loc['silhouette_batch', 'just_biomart'] = silhouetteBatch_just_bi
 output_biomart.loc['kBET', 'just_biomart'] = kBET_just_biomart
 output_biomart.loc['LISI', 'just_biomart'] = LISI_score_just_biomart
 output_biomart.loc['Cell cycle conservation', 'just_biomart'] = cell_cycle_biomart
-output_biomart.loc['Species-type LISI', 'just_biomart'] = clisi_graph_biomart
+output_biomart.loc['Cell-type LISI', 'just_biomart'] = clisi_graph_biomart
 output_biomart.loc['isolated_labels_f1', 'just_biomart'] = isolated_labels_f1_biomart
 output_biomart.loc['Species mixing score', 'just_biomart'] = (graph_connectivity_just_biomart + pcr_comparison_just_biomart + silhouetteBatch_just_biomart[0] + kBET_just_biomart + LISI_score_just_biomart)/5 # Species Score
 output_biomart.T.to_csv('/media/Storage/R/just_biomart/metrics_just_biomart_cell_type.csv')
@@ -238,7 +238,7 @@ output_OMA.loc['silhouette_batch', 'OMA'] = silhouetteBatch_OMA[0]
 output_OMA.loc['kBET', 'OMA'] = kBET_OMA
 output_OMA.loc['LISI', 'OMA'] = LISI_score_OMA
 output_OMA.loc['Cell cycle conservation', 'OMA'] = cell_cycle_OMA
-output_OMA.loc['Species-type LISI', 'OMA'] = clisi_graph_OMA
+output_OMA.loc['Cell-type LISI', 'OMA'] = clisi_graph_OMA
 output_OMA.loc['isolated_labels_f1', 'OMA'] = isolated_labels_f1_OMA
 output_OMA.loc['Species mixing score', 'OMA'] = (graph_connectivity_OMA + pcr_comparison_OMA + silhouetteBatch_OMA[0] + kBET_OMA + LISI_score_OMA)/5 # Species Score
 output_OMA.T.to_csv('/media/Storage/R/OMA/metrics_OMA_cell_type.csv')
