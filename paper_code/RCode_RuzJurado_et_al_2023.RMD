@@ -962,7 +962,7 @@ rm(SeuratObject.combined.annotated.contast_celltype,
 ```
 
 
-###5.3.2 FIG.5B / Mean +/- Sem bar graphs condition (Figure 5B)
+###5.3.2 FIG.6B / Mean +/- Sem bar graphs condition (Figure 6B)
 
 ```{r}
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/SEM_graphs"
@@ -1845,7 +1845,7 @@ dev.off()
 
 ```
 
-###5.4.6 FIG.4 / GO (Database) GSEA results in Heatmap using simplifyEnrichment for HFrEF (Figure 4)
+###5.4.6 FIG.5A / GO (Database) GSEA results in Heatmap using simplifyEnrichment for HFrEF (Figure 5A)
 ```{r}
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/GSEA_analysis"
 
@@ -1871,7 +1871,7 @@ dev.off()
 
 ```
 
-###5.4.7 FIG.5A / building Dot plot with GSEA result Cardiomyocytes (Figure 5A)
+###5.4.7 FIG.6A / building Dot plot with GSEA result Cardiomyocytes (Figure 6A)
 ```{r}
 
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/GSEA_analysis"
