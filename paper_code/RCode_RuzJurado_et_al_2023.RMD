@@ -3379,6 +3379,7 @@ for(seuObj in SeuratObjectList){
   tmp.sce <- Seurat::as.SingleCellExperiment(seuObj)
   zellkonverter::writeH5AD(tmp.sce, file = paste0(outputFolder2,"Conversion/unintegrated/Seu_Obj_",orig.ident,".h5ad"), X_name = "logcounts")
 }
+```
 
 ##6.5 FIG.2D / Table out of metrics calculated by python script (Figure 2D)
 ```{r}
