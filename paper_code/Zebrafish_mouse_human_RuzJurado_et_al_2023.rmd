@@ -247,7 +247,7 @@ rm(SeuratObject.combined.all.Markers.in.Cluster)
 
 ```
 
-#1.9 Re-annotate object
+#1.9 SUPP.FIG.6A&B Re-annotate object (Supplement Figure 6A&B)
 
 ```{r}
 
@@ -282,7 +282,7 @@ saveRDS(SeuratObject_human_mouse_zebrafish, file = paste0(outputfolder, "/Seurat
 
 ```
 
-```{r}
+```{r} SUPP.FIG6D-F Dotplot Marker genes (Supplement Figure 6D-F)
 
 features <- c("NRGN", "GPC5","SLC17A7","GRID2","CPE","NPTN","KCND2","CHN1","ENC1","CAM2",
               "SNCB","SNRNP48","SLC6A1","CXCL14","GAD1","ATP6V0C","SNAP25","DNER","PDGFB","SCG2",
@@ -369,7 +369,7 @@ DotPlot(SeuratObject_human_mouse_zebrafish.species3, features = unique(rev(tp20.
 ggsave(filename = paste0(outputfolder,"/dotplots_per_celltype/Zebrafish_Markers_for_cell_types.svg"), width = 12, height = 5)
 ```
 
-#2.0 Barplot % celltype
+#2.0 SUPP.FIG.6C Barplot % celltype (Supplement Figure 6C)
 ```{r}
 ## Barplot of % cells per cell type (condition)
 
