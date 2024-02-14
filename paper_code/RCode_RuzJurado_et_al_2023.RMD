@@ -2833,7 +2833,7 @@ dev.off()
 
 ```
 
-#6. SUPP.FIG.2 / Creating integrated objects with ortholgueLists from other databases (Supplement Figure 2)
+#6. Creating integrated objects with ortholgueLists from other databases
 ```{r}
 #biomart just 1:1 assignments using GTF files
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Comparison_other_orthologue_objects/just_biomart"
@@ -3019,7 +3019,7 @@ Seurat_OMA <- FindClusters(Seurat_OMA, resolution = 0.3)
 
 ```
 
-##6.1 SUPP.FIG.4 / Clustering Silhouette Co-Efficient (Figure 2A)
+##6.1 FIG.2A / Clustering Silhouette Co-Efficient (Figure 2A)
 
 ```{r}
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Comparison_other_orthologue_objects/just_biomart"
