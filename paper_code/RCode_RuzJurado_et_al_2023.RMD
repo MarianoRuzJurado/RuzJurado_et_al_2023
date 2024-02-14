@@ -2169,6 +2169,41 @@ DO.Mean.SEM.Graphs(SeuratObject = SeuratObject.combined.annotated.HFrEF.EC,
 ggsave(filename = paste0(outputFolder,"/ECs_genes_same.svg"),device = "svg", width = 14, height = 5)
 ```
 
+#5.4.8 SUPP.FIG2 SeuratObject UMAPs for all analyzed tools (Supplement Figure 2)
+```{r}
+outputFolder <-  "/media/Helios_scStorage/Mariano/Revision_scib/Supplement_Figure_2/"
+
+#Read in Object to use
+Seu.Obj <- readRDS("/media/Storage/R/Integrated/SeuratObject.combined.integrated.annotated_10_08_22.rds")
+DimPlot(Seu.Obj, group.by = "seurat_clusters", label = T)
+ggsave(filename = paste(outputFolder,"Dimplot_OrthoIntegrate_10_08_22_seuratclusters.png"), device = "png", width = 10, height = 8)
+DimPlot(Seu.Obj, group.by = "cell_type", label = T)
+ggsave(filename = paste(outputFolder,"Dimplot_OrthoIntegrate_10_08_22_celltype.png"), device = "png", width = 10, height = 8)
+
+#Repeat for other Objects Biomart
+Seu.Obj.biomart <- readRDS("/media/Storage/R/just_biomart/SeuratObject.combined.integrated_10_08_22_annotated.rds")
+DimPlot(Seu.Obj.biomart, group.by = "seurat_clusters", label = T)
+ggsave(filename = paste(outputFolder,"Dimplot_biomart_10_08_22_seuratclusters.png"), device = "png", width = 10, height = 8)
+DimPlot(Seu.Obj.biomart, group.by = "cell_type", label = T)
+ggsave(filename = paste(outputFolder,"Dimplot_biomart_10_08_22_celltype.png"), device = "png", width = 10, height = 8)
+
+#para
+Seu.Obj.paran <- readRDS("/media/Storage/R/Inparanoid/SeuratObject.combined.integrated_10_08_22_annotated.rds")
+DimPlot(Seu.Obj.paran, group.by = "seurat_clusters", label = T)
+ggsave(filename = paste(outputFolder,"Dimplot_para_10_08_22_seuratclusters.png"), device = "png", width = 10, height = 8)
+DimPlot(Seu.Obj.paran, group.by = "cell_type", label = T)
+ggsave(filename = paste(outputFolder,"Dimplot_para_10_08_22_celltype.png"), device = "png", width = 10, height = 8)
+
+#OMA
+Seu.Obj.OMA <- readRDS("/media/Storage/R/OMA/SeuratObject.combined.integrated_10_08_22_annotated.rds")
+DimPlot(Seu.Obj.OMA, group.by = "seurat_clusters", label = T)
+ggsave(filename = paste(outputFolder,"Dimplot_OMA_10_08_22_seuratclusters.png"), device = "png", width = 10, height = 8)
+DimPlot(Seu.Obj.OMA, group.by = "cell_type", label = T)
+ggsave(filename = paste(outputFolder,"Dimplot_OMA_10_08_22_celltype.png"), device = "png", width = 10, height = 8)
+
+```
+
+
 ##5.5 SUPP.FIG.3 / Circos plot Human specific mice matched (Supplement Figure 3)
 
 ###5.5.1 SUPP.FIG.3A / Circos plot contrast and cell type specific HFrEF Top 10 log2fC sorted DEGs for Human with mouse log2FC (Supplement Figure 3A)
