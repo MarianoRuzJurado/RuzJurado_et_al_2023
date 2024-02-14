@@ -1154,7 +1154,7 @@ rm(Human.unique,Cardio.Human.HFrEF,Cardio.Mice.HFrEF,Mice.unique)
 ```
 
 
-###5.3.3 FIG.2A / Sankey diagramm for visualizing distribution of DEGs in biological contrasts (Figure 2A)
+###5.3.3 FIG.3A / Sankey diagramm for visualizing distribution of DEGs in biological contrasts (Figure 3A)
 
 ```{r}
 
@@ -1326,7 +1326,7 @@ p
 
 
 
-###5.3.4 FIG.2B / DEGs Barplot per cell type (Figure 2B)
+###5.3.4 FIG.3B / DEGs Barplot per cell type (Figure 3B)
 ```{r}
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/"
 
