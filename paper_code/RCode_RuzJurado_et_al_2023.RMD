@@ -3019,7 +3019,7 @@ Seurat_OMA <- FindClusters(Seurat_OMA, resolution = 0.3)
 
 ```
 
-##6.1 SUPP.FIG.4 / Clustering Silhouette Co-Efficient (Supplement Figure 4)
+##6.1 SUPP.FIG.4 / Clustering Silhouette Co-Efficient (Figure 2A)
 
 ```{r}
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Comparison_other_orthologue_objects/just_biomart"
