@@ -3176,25 +3176,6 @@ sil.DF.mean$OrthologousList <- factor(sil.DF.mean$OrthologousList, levels = c("b
 sil.DF.m <- melt(sil.DF[,c("Sample","biomart","paranoid","OMA","OrthoIntegrate")], id.vars = 1) #melt dataframe without meaned values
 sil.DF.m$Sample <- factor(sil.DF.m$Sample, levels = unique(sil.DF.m$Sample))
 
-ggplot(sil.DF.mean, aes(x=OrthologousList, y=MeanSilhouetteScore))+
-  geom_bar(aes(fill= OrthologousList), stat = "identity", position = "dodge")+
-  labs(y = "Silhouette Coefficient", x = "")+
-  scale_x_discrete()+
-  scale_fill_manual(values = rep(c("#003f5c" ,"#08519C", "#CBFF8C", "#ffa600"),5)
-                      , name = "Tool")+
-  # geom_jitter(data = sil.DF.m, aes(x=variable,y=value), size = 2, shape=17)+
-  theme_classic() +
-  theme(axis.text.x = element_text(face = "bold", color = "black",angle = 45,hjust = 1, size = 18),
-          axis.text.y = element_text(color = "black", size = 18),
-          axis.title.x = element_blank(),
-          axis.title = element_text(size = 18, color = "black"),
-          plot.title = element_text(face = "bold", size = 18, hjust = 0.5),
-          axis.line = element_line(color = "black", size = .6),
-          strip.text.x = element_text(size = 20, color = "black"),
-          legend.position = "bottom")
-
-ggsave(filename = "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Comparison_other_orthologue_objects/barplot_silhouette.svg", width = 7,height = 5)
-
 #as boxplot
 
 sil.DF.m$variable <- factor(sil.DF.m$variable, levels = c("OMA","biomart","paranoid","OrthoIntegrate"))
@@ -3219,6 +3200,425 @@ ggsave(filename = "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_M
 
 ```
 
+##6.2 FIG.2B&C / Bar plot with mouse gtf file for % of mouse genes found with orthologues (Figure 2B & 2C)
+```{r}
+
+GTF.mice <- "/opt/refdata-gex-mm10-2020-A/genes/genes.gtf"
+GTF.gr.m <- rtracklayer::import(GTF.mice)
+GTF.df.m <- as.data.frame(GTF.gr.m)
+
+tmp <- GTF.df.m[!duplicated(GTF.df.m$gene_name),]
+length(unique(tmp$gene_name))
+unique(tmp$gene_type)
+
+GTF.mice.gene.names <- tmp[!grepl("pseudogene",tmp$gene_type),] # 32043
+
+# merge with my data frame orthointegrate to see % of lncRNA and proteincoding run 1.6 to get DF
+merge.orthoIntegrate <- GTF.mice.gene.names[GTF.mice.gene.names$gene_name %in% OrthologueList$MouseGene,] #lncRNA 68, protein_coding 17240
+
+#merge with OMA result
+OMA_ortholog <- read.delim2(file = "/home/mariano/OMA/OrthologList_OMA_entrez.txt") # does have only 1:1s
+mouse_entrez_id <- OMA_ortholog$X66505 
+library(org.Mm.eg.db)
+gene_names <- select(org.Mm.eg.db, keys = mouse_entrez_id, keytype = "ENTREZID", columns = "SYMBOL")
+mouse_gene_names <- gene_names$SYMBOL
+mouse_gene_names <- unique(mouse_gene_names)
+mouse_gene_names <- mouse_gene_names[!is.na(mouse_gene_names)]
+merge.OMA <- GTF.mice.gene.names[GTF.mice.gene.names$gene_name %in% mouse_gene_names,] #lncRNA 4 protein_coding 16713
+
+#justbiomart run code in 12. to get df
+merge.biomart <- GTF.mice.gene.names[GTF.mice.gene.names$gene_name %in% OrthologueList$MouseGene,] #lncRNA 5 protein_coding 16108
+
+#InParanoid run code in 12. to get df
+OrthologueList <- openxlsx::read.xlsx(xlsxFile = "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Comparison_other_orthologue_objects/Inparanoid/OrthologueList_Inparanoid.xlsx")
+colnames(OrthologueList)  <- c("HGNC.symbol","MouseGene")
+
+merge.InParanoid <- GTF.mice.gene.names[GTF.mice.gene.names$gene_name %in% OrthologueList$MouseGene,] #lncRNA 3 protein_coding 15245
+
+#protein coding plot
+prot.DF <- data.frame("OMA" = 16713,
+                      "biomart" = 16108,
+                      "InParanoid" = 15245,
+                      "OrthoIntegrate" =  17240)
+
+prot.DF.m <- melt(prot.DF) # melt
+colnames(prot.DF.m) <- c("Tool", "Orthologs")
+
+prot.DF.m$Tool <- factor(prot.DF.m$Tool, levels = unique(prot.DF.m$Tool))
+#plot
+ggplot(prot.DF.m, aes(fill=Tool, y=Orthologs,x=Tool))+
+  geom_col(size = 1, width = 1)+
+  scale_fill_manual(values = rep(c("#003f5c" ,"#08519C", "#0DA336", "#ffa600")) 
+                      , name = "Tool")+
+  labs(title = "", y = "Number of protein coding orthologs")+
+  # coord_flip()+
+  theme_classic() +
+  theme(axis.text.x = element_text(face = "bold", color = "black",angle = 45,hjust = 1, size = 15),
+          axis.text.y = element_text(color = "black", size = 15),
+          axis.title.x = element_blank(),
+          axis.title = element_text(size = 18, color = "black"),
+          plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+          axis.line = element_line(color = "black", size = .6),
+          strip.text.x = element_text(size = 20, color = "black"),
+          legend.position = "right")
+
+ggsave(filename = "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Comparison_other_orthologue_objects/barplot_protein_orthologs.svg", width = 6,height = 6)
+
+
+#protein coding plot
+lncRNA.DF <- data.frame("OMA" = 4,
+                      "biomart" = 5,
+                      "InParanoid" = 3,
+                      "OrthoIntegrate" =  68)
+
+lncRNA.DF.m <- melt(lncRNA.DF) # melt
+colnames(lncRNA.DF.m) <- c("Tool", "Orthologs")
+
+lncRNA.DF.m$Tool <- factor(lncRNA.DF.m$Tool, levels = unique(lncRNA.DF.m$Tool))
+#plot
+ggplot(lncRNA.DF.m, aes(fill=Tool, y=Orthologs,x=Tool))+
+  geom_col(size = 1, width = 1)+
+  scale_fill_manual(values = rep(c("#003f5c" ,"#08519C", "#0DA336", "#ffa600")) 
+                      , name = "Tool")+
+  labs(title = "", y = "Number of lncRNA coding orthologs")+
+  # coord_flip()+
+  theme_classic() +
+  theme(axis.text.x = element_text(face = "bold", color = "black",angle = 45,hjust = 1, size = 15),
+          axis.text.y = element_text(color = "black", size = 15),
+          axis.title.x = element_blank(),
+          axis.title = element_text(size = 18, color = "black"),
+          plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+          axis.line = element_line(color = "black", size = .6),
+          strip.text.x = element_text(size = 20, color = "black"),
+          legend.position = "right")
+
+ggsave(filename = "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Comparison_other_orthologue_objects/barplot_lncRNA_orthologs.svg", width = 6,height = 6)
+
+```
+
+##6.3 Making a SCO for scanpy transfer
+```{r}
+outputFolder2 <- "/media/Storage/R/Revision_scib/"
+library(anndata)
+library(Seurat)
+library(zellkonverter)
+#Read in Object to use ZELLKONVERTER
+Seu.Obj <- readRDS("/media/Storage/R/Integrated/SeuratObject.combined.integrated.annotated_10_08_22.rds")
+DefaultAssay(object = Seu.Obj) <- "RNA"
+
+#Get uMAP embeddings, PCA embeddings, k-param neares neighborhood
+UMAPEmbeddings <- Seu.Obj@reductions$umap
+UMAPEmbeddings <- UMAPEmbeddings@cell.embeddings
+write.csv(UMAPEmbeddings, file = "/media/Storage/R/Integrated/UMAPEmbedings.csv", row.names = T)
+#PCA
+PCAEmbeddings <- Seu.Obj@reductions$pca
+PCAEmbeddings <- PCAEmbeddings@cell.embeddings
+write.csv(PCAEmbeddings, file = "/media/Storage/R/Integrated/PCAEmbedings.csv", row.names = T)
+#Convert object
+DefaultAssay(Seu.Obj) <- "RNA"
+tmp.sce <- Seurat::as.SingleCellExperiment(Seu.Obj)
+zellkonverter::writeH5AD(tmp.sce, file = paste0(outputFolder2,"Conversion/SeuratObject.combined.integrated.annotated_10_08_22.h5ad"), X_name = "logcounts")
+
+#Repeat for other Objects
+Seu.Obj.biomart <- readRDS("/media/Storage/R/just_biomart/SeuratObject.combined.integrated_10_08_22_annotated.rds")
+DefaultAssay(Seu.Obj.biomart) <- "RNA"
+Seu.Obj.paran <- readRDS("/media/Storage/R/Inparanoid/SeuratObject.combined.integrated_10_08_22_annotated.rds")
+DefaultAssay(Seu.Obj.paran) <- "RNA"
+Seu.Obj.OMA <- readRDS("/media/Storage/R/OMA/SeuratObject.combined.integrated_10_08_22_annotated.rds")
+DefaultAssay(Seu.Obj.OMA) <- "RNA"
+
+#Get uMAP embeddings, PCA embeddings, k-param neares neighborhood
+UMAPEmbeddings <- Seu.Obj.biomart@reductions$umap
+UMAPEmbeddings <- UMAPEmbeddings@cell.embeddings
+write.csv(UMAPEmbeddings, file = "/media/Storage/R/just_biomart/UMAPEmbedings.csv", row.names = T)
+#PCA
+PCAEmbeddings <- Seu.Obj.biomart@reductions$pca
+PCAEmbeddings <- PCAEmbeddings@cell.embeddings
+write.csv(PCAEmbeddings, file = "/media/Storage/R/just_biomart/PCAEmbedings.csv", row.names = T)
+tmp.sce <- Seurat::as.SingleCellExperiment(Seu.Obj.biomart)
+zellkonverter::writeH5AD(tmp.sce, file = paste0(outputFolder2,"Conversion/SeuratObject.biomart_10_08_22.h5ad"), X_name = "logcounts")
+
+#Get uMAP embeddings, PCA embeddings, k-param neares neighborhood
+UMAPEmbeddings <- Seu.Obj.paran@reductions$umap
+UMAPEmbeddings <- UMAPEmbeddings@cell.embeddings
+write.csv(UMAPEmbeddings, file = "/media/Storage/R/Inparanoid/UMAPEmbedings.csv", row.names = T)
+#PCA
+PCAEmbeddings <- Seu.Obj.paran@reductions$pca
+PCAEmbeddings <- PCAEmbeddings@cell.embeddings
+write.csv(PCAEmbeddings, file = "/media/Storage/R/Inparanoid/PCAEmbedings.csv", row.names = T)
+tmp.sce <- Seurat::as.SingleCellExperiment(Seu.Obj.paran)
+zellkonverter::writeH5AD(tmp.sce, file = paste0(outputFolder2,"Conversion/SeuratObject.inparanoid_10_08_22.h5ad"), X_name = "logcounts")
+
+#Get uMAP embeddings, PCA embeddings, k-param neares neighborhood
+UMAPEmbeddings <- Seu.Obj.OMA@reductions$umap
+UMAPEmbeddings <- UMAPEmbeddings@cell.embeddings
+write.csv(UMAPEmbeddings, file = "/media/Storage/R/OMA/UMAPEmbedings.csv", row.names = T)
+#PCA
+PCAEmbeddings <- Seu.Obj.OMA@reductions$pca
+PCAEmbeddings <- PCAEmbeddings@cell.embeddings
+write.csv(PCAEmbeddings, file = "/media/Storage/R/OMA/PCAEmbedings.csv", row.names = T)
+tmp.sce <- Seurat::as.SingleCellExperiment(Seu.Obj.OMA)
+zellkonverter::writeH5AD(tmp.sce, file = paste0(outputFolder2,"Conversion/SeuratObject.oma_10_08_22.h5ad"), X_name = "logcounts")
+
+
+rm(tmp.sce)
+```
+
+##6.4 need unintegrated objects for metric calculation of scib package in python
+```{r}
+outputFolder2 <- "/media/Storage/R/Revision_scib/"
+library(anndata)
+library(Seurat)
+library(zellkonverter)
+
+#need unintegrated Anndata object, create SCE objects out of my SeuratObjectList before integration
+SeuratObjectList <- readRDS(file = "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Seurat_and_R_objects/SeuratObjectList_before_Integration.rds")
+
+for(seuObj in SeuratObjectList){
+  orig.ident <- unique(seuObj$orig.ident) #gives error for control groups
+  tmp.sce <- Seurat::as.SingleCellExperiment(seuObj)
+  zellkonverter::writeH5AD(tmp.sce, file = paste0(outputFolder2,"Conversion/unintegrated/Seu_Obj_",orig.ident,".h5ad"), X_name = "logcounts")
+}
+
+##6.5 FIG.2D / Table out of metrics calculated by python script (Figure 2D)
+```{r}
+library(openxlsx)
+library(tidyverse)
+library(reactable)
+library(htmltools)
+metric_com <- read.csv("/Users/mariano/Desktop/Work_PhD/Project/R_analysis/Revision_scib/metric_comb_cell_type_last.csv")
+metric_com <- metric_com %>% rename(Tool = X)
+#include values of calculation in python
+#metric_com[["ARI"]] <- c(0.5189914261303687, 0.6193180164344755, 05628124884257347, 0.6436776622868948)
+#metric_com[["NMI"]] <- c(0.7786952496474926, 0.8443411899971773, 0.7947436629297074, 0.8434689168247185 )
+#exclude LISI as proposed by BENGAL
+metric_com[["LISI"]] <- NULL
+metric_com[["Species.type.LISI"]] <- NULL
+metric_com[["ARI"]] <- NULL
+
+#metric_com <- metric_com[,c(1,2,3,4,5,6,7,8,12,13,9,11,10)]
+reorder_vec <- c("OMA","biomart","InParanoid","OrthoIntegrate")
+metric_com <- metric_com[order(match(metric_com$Tool, reorder_vec)), ]
+metric_com$Tool <- c("OMA","Biomart","InParanoid","OrthoInt.")
+
+#recalculate combined score
+#metric_com$Species.mixing.score <- rowSums(metric_com[,2:5])/4
+metric_com$Bio.Conservation.Score <- rowSums(metric_com[,6:9])/4
+metric_com$Total.Score <- (metric_com$Species.mixing.score * 0.5) + (metric_com$Bio.Conservation.Score *0.5)
+
+#write.csv(metric_com, file = "/Users/mariano/Desktop/Work_PhD/Project/R_analysis/Revision_scib/metric_com_WITH_NMI_ARI_without_LISI.csv")
+
+batch_cols <- c("graph_connectivity", "pcr_comparison", "silhouette_batch", "kBET")
+bio_cols <- c("Cell.cycle.conservation", "isolated_labels_f1", "Silhouette.Coefficient","NMI")
+aggregate_cols <- c("Species.mixing.score", "Bio.Conservation.Score", "Total.Score")
+
+batch_column <- function(maxWidth = 3000, ...) {
+  colDef(maxWidth = maxWidth, align = "center", class = "cell number", ...)
+}
+
+bio_column <- function(maxWidth = 3000, ...) {
+  colDef(maxWidth = maxWidth, align = "center", class = "cell number", ...)
+}
+
+aggregate_column <- function(maxWidth = 3000, ...) {
+  colDef(maxWidth = maxWidth, align = "center", class = "cell number", ...)
+}
+
+make_color_pal <- function(colors, bias = 1) {
+  get_color <- colorRamp(colors, bias = bias)
+  function(x) rgb(get_color(x), maxColorValue = 255)
+}
+
+off_rating_color <- make_color_pal(c("#287D8EFF", "#f8fcf8", "#3CBB75FF"), bias = 1)
+score_rating_color <- make_color_pal(c("#FDE725FF", "#f8fcf8", "#bda78f"), bias = 23)
+score_rating_final <- make_color_pal(c("#FDE725FF", "#f5e241","#fdf5b2"), bias = 23)
+
+
+reactable(
+  metric_com,
+  pagination = FALSE,
+  defaultSortOrder = "desc",
+  defaultColGroup = colGroup(headerVAlign = "bottom"),
+  columnGroups = list(
+    colGroup(name = "Batch Correction", columns = batch_cols),
+    colGroup(name = "Bio Conservation", columns = bio_cols),
+    colGroup(name = "Aggregate Score", columns = aggregate_cols)
+  ),
+  defaultColDef = colDef(
+    header = function(value) gsub(".", " ", value, fixed = TRUE),
+    cell = function(value) format(value, nsmall = 1),
+    align = "center",
+    minWidth = 80,
+    headerStyle = list(background = "#f7f7f8")
+  ),
+  columns = list(
+    tool = colDef(
+      defaultSortOrder = "asc",
+      minWidth = 100,
+      headerStyle = list(fontWeight = 700),
+    ),
+    graph_connectivity = batch_column(
+      name = "GC",
+      width = 100,  # Adjust the width as needed
+      cell = function(value) {
+        scaled <- (value - min(metric_com$graph_connectivity)) / (max(metric_com$graph_connectivity) - min(metric_com$graph_connectivity))
+        color <- "#287D8EFF"
+        value <- format(round(value, 3), nsmall = 1)
+        div(class = "spi-rating", style = list(background = color), value)
+      }
+    ),
+    pcr_comparison = batch_column(
+      name = "PCR", 
+      defaultSortOrder = "asc",
+      width = 100,  # Adjust the width as needed
+      cell = function(value) {
+        scaled <- 1 - (value - min(metric_com$pcr_comparison)) / (max(metric_com$pcr_comparison) - min(metric_com$pcr_comparison))
+        color <- off_rating_color(scaled)
+        value <- format(round(value, 3), nsmall = 1)
+        div(class = "spi-rating", style = list(background = color), value)
+      }
+    ),
+    silhouette_batch = batch_column(
+      name = "bASW", 
+      defaultSortOrder = "asc",
+      width = 100,  # Adjust the width as needed
+      cell = function(value) {
+        scaled <- 1 - (value - min(metric_com$silhouette_batch)) / (max(metric_com$silhouette_batch) - min(metric_com$silhouette_batch))
+        color <- off_rating_color(scaled)
+        value <- format(round(value, 3), nsmall = 1)
+        div(class = "spi-rating", style = list(background = color), value)
+      }
+    ),
+      kBET = batch_column(
+      name = "kBET", 
+      width = 100,  # Adjust the width as needed
+      defaultSortOrder = "asc",
+      cell = function(value) {
+        scaled <- 1 - (value - min(metric_com$kBET)) / (max(metric_com$kBET) - min(metric_com$kBET))
+        color <- off_rating_color(scaled)
+        value <- format(round(value, 3), nsmall = 1)
+        div(class = "spi-rating", style = list(background = color), value)
+      }
+    ),
+    #   ARI = batch_column(
+    #   name = "ARI", 
+    #   width = 100,  # Adjust the width as needed
+    #   defaultSortOrder = "asc",
+    #   cell = function(value) {
+    #     scaled <- 1 - (value - min(metric_com$ARI)) / (max(metric_com$ARI) - min(metric_com$ARI))
+    #     color <- off_rating_color(scaled)
+    #     value <- format(round(value, 3), nsmall = 1)
+    #     div(class = "spi-rating", style = list(background = color), value)
+    #   }
+    # ),
+      Cell.cycle.conservation = bio_column(
+      name = "CCC", 
+      width = 100,  # Adjust the width as needed
+      defaultSortOrder = "asc",
+      cell = function(value) {
+        scaled <- 1 - (value - min(metric_com$Cell.cycle.conservation)) / (max(metric_com$Cell.cycle.conservation) - min(metric_com$Cell.cycle.conservation))
+        color <- off_rating_color(scaled)
+        value <- format(round(value, 3), nsmall = 1)
+        div(class = "spi-rating", style = list(background = color), value)
+      }
+    ),
+      NMI = bio_column(
+      name = "NMI", 
+      width = 100,  # Adjust the width as needed
+      defaultSortOrder = "asc",
+      cell = function(value) {
+        scaled <- 1 - (value - min(metric_com$NMI)) / (max(metric_com$NMI) - min(metric_com$NMI))
+        color <- off_rating_color(scaled)
+        value <- format(round(value, 3), nsmall = 1)
+        div(class = "spi-rating", style = list(background = color), value)
+      }
+    ),
+      isolated_labels_f1 = bio_column(
+      name = "ILF1", 
+      width = 100,  # Adjust the width as needed
+      defaultSortOrder = "asc",
+      cell = function(value) {
+        scaled <- 1 - (value - min(metric_com$isolated_labels_f1)) / (max(metric_com$isolated_labels_f1) - min(metric_com$isolated_labels_f1))
+        color <- off_rating_color(scaled)
+        value <- format(round(value, 3), nsmall = 1)
+        div(class = "spi-rating", style = list(background = color), value)
+      }
+    ),
+      Silhouette.Coefficient = bio_column(
+      name = "SC", 
+      width = 100,  # Adjust the width as needed
+      defaultSortOrder = "asc",
+      cell = function(value) {
+        scaled <- 1 - (value - min(metric_com$Silhouette.Coefficient)) / (max(metric_com$Silhouette.Coefficient) - min(metric_com$Silhouette.Coefficient))
+        color <- off_rating_color(scaled)
+        value <- format(round(value, 3), nsmall = 1)
+        div(class = "spi-rating", style = list(background = color), value)
+      }
+    ),
+      Bio.Conservation.Score = aggregate_column(
+      name = "BSC", 
+      width = 100,  # Adjust the width as needed
+      defaultSortOrder = "asc",
+      cell = function(value) {
+        scaled <- 1 - (value - min(metric_com$Bio.Conservation.Score)) / (max(metric_com$Bio.Conservation.Score) - min(metric_com$Bio.Conservation.Score))
+        color <- score_rating_color(scaled)
+        value <- format(round(value, 3), nsmall = 1)
+        div(class = "spi-rating", style = list(background = color), value)
+      }
+    ),
+      Total.Score = aggregate_column(
+      name = "Total", 
+      width = 100,  # Adjust the width as needed
+      defaultSortOrder = "asc",
+      cell = function(value) {
+        scaled <- 1 - (value - min(metric_com$Total.Score)) / (max(metric_com$Total.Score) - min(metric_com$Total.Score))
+        color <- score_rating_final(scaled)
+        value <- format(round(value, 3), nsmall = 1)
+        div(class = "spi-rating", style = list(background = color), value)
+      }
+    ),
+      Species.mixing.score = aggregate_column(
+      name = "SMS", 
+      width = 100,  # Adjust the width as needed
+      defaultSortOrder = "asc",
+      cell = function(value) {
+        scaled <- 1 - (value - min(metric_com$Species.mixing.score)) / (max(metric_com$Species.mixing.score) - min(metric_com$Species.mixing.score))
+        color <- score_rating_color(scaled)
+        value <- format(round(value, 3), nsmall = 1)
+        div(class = "spi-rating", style = list(background = color), value)
+      }
+    )
+  ),
+  # Emphasize borders between groups when sorting by group
+  # rowClass = JS("
+  #   function(rowInfo, state) {
+  #     const firstSorted = state.sorted[0]
+  #     if (firstSorted && firstSorted.id === 'group') {
+  #       const nextRow = state.pageRows[rowInfo.viewIndex + 1]
+  #       if (nextRow && rowInfo.values['group'] !== nextRow.group) {
+  #         return 'group-last'
+  #       }
+  #     }
+  #   }"
+  # ),
+  showSortIcon = FALSE,
+  borderless = TRUE,
+  class = "standings-table",
+  resizable = TRUE,
+  compact = TRUE,
+  rowStyle = function() {
+    list(marginBottom = "16px")  # Adjust the margin as needed
+  },
+  theme = reactableTheme(
+            borderColor = "#dfe2e5",
+            stripedColor = "#f6f8fa",
+            highlightColor = "#f0f5f9",
+            cellPadding = "8px 12px",
+            style = list(fontFamily = "-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif",
+                         fontSize = "28px"))
+)
+
+```
 #7. SUPP.FIG.5A&B / Build UpSet plot with DEG list (Supplement Figure 5A & B)
 
 ```{r}
