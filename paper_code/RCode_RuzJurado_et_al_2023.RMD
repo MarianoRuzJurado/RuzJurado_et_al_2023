@@ -962,7 +962,7 @@ rm(SeuratObject.combined.annotated.contast_celltype,
 ```
 
 
-###5.3.2 FIG.6B / Mean +/- Sem bar graphs condition (Figure 6B)
+###5.3.2 FIG.6B-D / Mean +/- Sem bar graphs condition (Figure 6B-D)
 
 ```{r}
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/SEM_graphs"
