@@ -1979,7 +1979,7 @@ ggsave(paste0(outputFolder,"/GSEA_Terms_Dotplot_Human_Both_Mice_Cardiomyocytes.s
   
 ```
 
-#### 5.4.7.1 SUPP.FIG.6A-D / GO (Database) GSEA results in Dot plot for HFrEF Endothelial (Supplement Figure 6A-D)
+#### 5.4.7.1 SUPP.FIG.5A-D / GO (Database) GSEA results in Dot plot for HFrEF Endothelial (Supplement Figure 5A-D)
 ```{r}
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/GSEA_analysis"
 
@@ -3655,7 +3655,7 @@ reactable(
 )
 
 ```
-#7. SUPP.FIG.5A&B / Build UpSet plot with DEG list (Supplement Figure 5A & B)
+#7. SUPP.FIG.4A&B / Build UpSet plot with DEG list (Supplement Figure 4A & B)
 
 ```{r}
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/venn_plot_sankey_plot/Venns_DEGs/"
