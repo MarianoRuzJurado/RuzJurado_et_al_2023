@@ -2659,7 +2659,7 @@ rm(Human_Markers.catch, Human.only.DEG.list)
 ```
 
 
-##5.7 FIG.3A&B Log2FC Heatmap  (Figure 3A & B)
+##5.7 FIG.4A&B Log2FC Heatmap  (Figure 4A & B)
 ```{r}
 
 outputFolder <- "/media/Helios_scStorage/Mariano/Human_Mice_Comparison/Human_Mice_Integrated/Contrast_Cell_specific/Expression_Heatmaps/"
