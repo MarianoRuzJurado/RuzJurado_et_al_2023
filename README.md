@@ -1,4 +1,8 @@
-# RuzJurado_et_al_2023
+# RuzJurado_et_al_2023 
+
+<a href="https://zenodo.org/doi/10.5281/zenodo.10686722"><img src="https://zenodo.org/badge/589516804.svg" alt="DOI"></a>
+
+
 Code used for R and Python analysis of data presented in "Improved integration of single cell transcriptome data demonstrates common and unique signatures of heart failure in mice and humans"
 
 Figure Destinations:
